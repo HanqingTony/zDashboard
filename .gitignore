@@ -10,3 +10,5 @@ audio/*.aac
 # zdb.db contains sensitive data (SSH keys, passwords) - never commit real db
 # Use zdb.example.db (schema-only) as template
 zdb.db
+zdb.db-shm
+zdb.db-wal
