@@ -225,8 +225,15 @@ wss.on('connection', (ws) => {
 // ---------- 分词工具 ----------
 // 将英文文章拆分为单词数组（保留原始大小写，但去重时统一用小写比较）
 function tokenize(text) {
-  // 匹配连续的英文字母（含撇号，如 I'm, don't）
-  return text.match(/[a-zA-Z]+(?:'[a-zA-Z]+)*/g) || [];
+  // 预处理：统一全角/弯引号撇号为半角，避免 don't 等被错误断词
+  const normalized = text
+    .replace(/[\u2019\u2018\u201A\uFF07]/g, "'")   // 右单引号、左单引号、单低引号、全角撇号 → 半角
+    .replace(/[\u2013\u2014\u2010\uFF0D]/g, "-");  // en-dash、em-dash、hyphen、全角连字符 → 半角连字符
+
+  // 匹配英文单词，支持：
+  // - 撇号缩写：I'm, we'd, don't, it's
+  // - 连字符复合词：good-looking, state-of-the-art, self-driving
+  return normalized.match(/[a-zA-Z]+(?:['\-][a-zA-Z]+)*/g) || [];
 }
 
 // ---------- 文章相关 API ----------

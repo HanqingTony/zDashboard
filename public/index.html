@@ -399,46 +399,6 @@
             border-radius:5px;
         }
         /* 非单词字符（标点、空格、换行等） */
-        .vw-sep{
-            display:inline;
-        }
-
-        /* ----- 单词详情弹窗 ----- */
-        .word-popup{
-            position:fixed;z-index:200;
-            background:var(--bg3);border:1px solid var(--bdr);
-            border-radius:8px;padding:10px 14px;
-            box-shadow:0 4px 20px rgba(0,0,0,.5);
-            font-size:12px;min-width:160px;
-            display:none;
-        }
-        .word-popup.show{display:block}
-        .word-popup .wp-word{
-            font-size:16px;font-weight:700;margin-bottom:6px;
-        }
-        .word-popup .wp-status{
-            margin-bottom:6px;display:flex;gap:4px;
-        }
-        .word-popup .wp-status .wb{
-            padding:3px 8px;border-radius:4px;font-size:10px;
-            cursor:pointer;border:1px solid var(--bdr);
-            background:var(--bg2);color:var(--tx2);transition:all .12s;
-        }
-        .word-popup .wp-status .wb.active{border-color:var(--ac);color:var(--tx);background:rgba(108,92,231,.15)}
-        .word-popup .wp-articles{
-            font-size:10px;color:var(--tx3);margin-top:6px;
-            border-top:1px solid var(--bdr);padding-top:6px;
-            max-height:120px;overflow-y:auto;
-        }
-        .word-popup .wp-articles div{
-            padding:2px 0;cursor:pointer;
-        }
-        .word-popup .wp-articles div:hover{color:var(--tx)}
-        .word-popup .wp-close{
-            position:absolute;top:4px;right:8px;
-            background:none;border:none;color:var(--tx3);
-            cursor:pointer;font-size:14px;
-        }
     </style>
 </head>
 <body>
@@ -534,13 +494,7 @@
     <span class="ab-ws" id="abWs">connecting...</span>
 </div>
 
-<!-- 单词详情弹窗 -->
-<div class="word-popup" id="wordPopup">
-    <button class="wp-close" onclick="closeWordPopup()">&times;</button>
-    <div class="wp-word" id="wpWord"></div>
-    <div class="wp-status" id="wpStatus"></div>
-    <div class="wp-articles" id="wpArticles"></div>
-</div>
+
 
 <script>
 // ========== 音频播放器 ==========
@@ -714,15 +668,14 @@ function renderVocabApp(container) {
                 <div class="vocab-sidebar">
                     <div class="vs-header">
                         <span>Articles</span>
+                        <button class="vb" style="padding:2px 8px;font-size:9px" onclick="showInputArea()">+ 新建</button>
                     </div>
                     <div class="vs-list" id="articleList"></div>
                 </div>
                 <div class="vocab-reader" id="vocabReader">
-                    <div class="vocab-input">
-                        <textarea id="newArticleText" placeholder="粘贴英文文章到这里..."></textarea>
-                        <div class="vi-actions">
-                            <button class="vb" onclick="analyzeArticle()">分析文章</button>
-                        </div>
+                    <div class="vocab-empty">
+                        <div class="ve-icon">&#x1F4DA;</div>
+                        <p>点击左侧「+ 新建」粘贴文章<br>或选择已有文章继续学习</p>
                     </div>
                 </div>
             </div>
@@ -811,16 +764,14 @@ async function deleteArticle(id) {
     } catch(e) { console.warn('[vocab] 删除失败:', e); }
 }
 
-// 渲染文章阅读区（空状态 → 显示输入框）
+// 渲染文章阅读区（空状态提示）
 function renderEmptyReader() {
     const reader = document.getElementById('vocabReader');
     if (!reader) return;
     reader.innerHTML = `
-        <div class="vocab-input">
-            <textarea id="newArticleText" placeholder="粘贴英文文章到这里..."></textarea>
-            <div class="vi-actions">
-                <button class="vb" onclick="analyzeArticle()">分析文章</button>
-            </div>
+        <div class="vocab-empty">
+            <div class="ve-icon">&#x1F4DA;</div>
+            <p>点击左侧「+ 新建」粘贴文章<br>或选择已有文章继续学习</p>
         </div>
     `;
 }
@@ -839,21 +790,26 @@ function renderArticleContent(article) {
     }
 
     // 分词：将文章拆分为单词和非单词片段
+    // 支持撇号缩写（I'm, we'd）和连字符复合词（good-looking）
+    // 预处理：统一全角/弯引号撇号为半角，避免 don\u2019t 等被错误断词
+    const normalized = article.content
+        .replace(/[\u2019\u2018\u201A\uFF07]/g, "'")
+        .replace(/[\u2013\u2014\u2010\uFF0D]/g, "-");
     const tokens = [];
-    const regex = /[a-zA-Z]+(?:'[a-zA-Z]+)*/g;
+    const regex = /[a-zA-Z]+(?:['\-][a-zA-Z]+)*/g;
     let lastIdx = 0;
     let match;
-    while ((match = regex.exec(article.content)) !== null) {
-        // 非单词部分（标点、空格、换行等）
+    while ((match = regex.exec(normalized)) !== null) {
+        // 非单词部分（标点、空格、换行等）—— 用原始文本保持显示一致
         if (match.index > lastIdx) {
-            tokens.push({ type: 'sep', text: article.content.slice(lastIdx, match.index) });
+            tokens.push({ type: 'sep', text: normalized.slice(lastIdx, match.index) });
         }
         tokens.push({ type: 'word', text: match[0], key: match[0].toLowerCase() });
         lastIdx = match.index + match[0].length;
     }
     // 尾部非单词部分
-    if (lastIdx < article.content.length) {
-        tokens.push({ type: 'sep', text: article.content.slice(lastIdx) });
+    if (lastIdx < normalized.length) {
+        tokens.push({ type: 'sep', text: normalized.slice(lastIdx) });
     }
 
     // 构建渲染 HTML
@@ -916,27 +872,25 @@ async function analyzeArticle() {
 }
 
 // 单词点击：切换状态
-// mastered → familiar → mastered（循环）
-// unknown → familiar → mastered（逐步掌握）
+// mastered → familiar → mastered（白↔黄循环）
+// unknown → familiar（红→黄，再点黄→白）
 async function onWordClick(el, event) {
     const word = el.dataset.word;
-    const currentStatus = el.dataset.status || el.classList.contains('mastered') ? 'mastered'
-        : el.classList.contains('familiar') ? 'familiar' : 'unknown';
+    const isMastered = el.classList.contains('mastered');
+    const isFamiliar = el.classList.contains('familiar');
+    const isUnknown = el.classList.contains('unknown');
 
-    // 状态切换逻辑
+    // 状态切换：白→黄→白，红→黄→白
     let nextStatus;
-    if (currentStatus === 'mastered') {
+    if (isMastered || isUnknown) {
         nextStatus = 'familiar';
-    } else if (currentStatus === 'familiar') {
+    } else {
         nextStatus = 'mastered';
-    } else { // unknown
-        nextStatus = 'familiar';
     }
 
     // 更新本地显示（乐观更新）
     el.classList.remove('mastered', 'familiar', 'unknown');
     el.classList.add(nextStatus);
-    el.dataset.status = nextStatus;
 
     // 发送到后端持久化
     try {
@@ -945,94 +899,9 @@ async function onWordClick(el, event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ word, status: nextStatus })
         });
-        // 刷新统计
         loadVocabStats();
     } catch(e) { console.warn('[vocab] 状态更新失败:', e); }
-
-    // 显示单词详情弹窗
-    showWordPopup(el, word, nextStatus);
 }
-
-// ========== 单词详情弹窗 ==========
-const wordPopup = document.getElementById('wordPopup');
-let wordPopupTimer = null;
-
-// 显示弹窗
-async function showWordPopup(anchor, word, currentStatus) {
-    clearTimeout(wordPopupTimer);
-    const wpWord = document.getElementById('wpWord');
-    const wpStatus = document.getElementById('wpStatus');
-    const wpArticles = document.getElementById('wpArticles');
-
-    wpWord.textContent = word;
-
-    // 状态按钮
-    const statuses = ['mastered', 'familiar', 'unknown'];
-    const labels = { mastered: '+ 已掌握', familiar: '~ 不熟练', unknown: '? 陌生' };
-    wpStatus.innerHTML = statuses.map(s =>
-        `<button class="wb ${s===currentStatus?'active':''}" onclick="setWordStatus('${word}','${s}')">${labels[s]}</button>`
-    ).join('');
-
-    // 加载单词出现过的文章
-    try {
-        const res = await fetch(`/api/words/${encodeURIComponent(word)}/articles`);
-        const data = await res.json();
-        if (data.articles && data.articles.length > 0) {
-            wpArticles.innerHTML = '<div style="color:var(--tx2);margin-bottom:4px">出现过的文章:</div>' +
-                data.articles.map(a =>
-                    `<div onclick="loadArticle(${a.id});closeWordPopup()">${escHtml(a.title)} (x${a.count})</div>`
-                ).join('');
-            wpArticles.style.display = 'block';
-        } else {
-            wpArticles.style.display = 'none';
-        }
-    } catch(e) { wpArticles.style.display = 'none'; }
-
-    // 定位弹窗（锚点附近）
-    const rect = anchor.getBoundingClientRect();
-    wordPopup.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
-    wordPopup.style.top = (rect.bottom + 4) + 'px';
-    wordPopup.classList.add('show');
-}
-
-// 关闭弹窗
-function closeWordPopup() {
-    wordPopup.classList.remove('show');
-}
-
-// 弹窗中切换单词状态
-async function setWordStatus(word, status) {
-    try {
-        await fetch('/api/words', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ word, status })
-        });
-
-        // 更新页面上所有同名单词的样式
-        document.querySelectorAll(`.vw[data-word="${word}"]`).forEach(el => {
-            el.classList.remove('mastered', 'familiar', 'unknown');
-            el.classList.add(status);
-            el.dataset.status = status;
-        });
-
-        // 更新弹窗内按钮状态
-        document.querySelectorAll('#wpStatus .wb').forEach(btn => {
-            btn.classList.toggle('active', btn.textContent.includes(
-                status === 'mastered' ? '已掌握' : status === 'familiar' ? '不熟练' : '陌生'
-            ));
-        });
-
-        loadVocabStats();
-    } catch(e) { console.warn('[vocab] 状态设置失败:', e); }
-}
-
-// 点击弹窗外关闭
-document.addEventListener('click', (e) => {
-    if (!wordPopup.contains(e.target) && !e.target.classList.contains('vw')) {
-        wordPopupTimer = setTimeout(closeWordPopup, 200);
-    }
-});
 
 // ========== 工具函数 ==========
 // HTML 转义
