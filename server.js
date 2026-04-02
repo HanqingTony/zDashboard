@@ -3,17 +3,34 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, basename, extname } from 'path';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import Database from 'better-sqlite3';
 
 // ========== 配置 ==========
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.PORT || 3100;
-const AUDIO_DIR = process.env.AUDIO_DIR || join(__dirname, 'audio');
+
+// 读取 config.json（不存在则用默认值）
+// 配置项同时支持环境变量覆盖（优先级：环境变量 > config.json > 默认值）
+let fileConfig = {};
+const configPath = join(__dirname, 'config.json');
+if (existsSync(configPath)) {
+  try {
+    fileConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+    console.log(`[config] 已加载: ${configPath}`);
+  } catch (e) {
+    console.warn(`[config] 读取失败，使用默认值: ${e.message}`);
+  }
+}
+
+const PORT = process.env.PORT || fileConfig.port || 3100;
+const AUDIO_DIR = resolve(__dirname, process.env.AUDIO_DIR || fileConfig.audioDir || 'audio');
+const DB_PATH = resolve(__dirname, process.env.DB_PATH || fileConfig.dbPath || 'zdb.db');
+
+console.log(`[config] 端口: ${PORT}`);
+console.log(`[config] 音频: ${AUDIO_DIR}`);
+console.log(`[config] 数据库: ${DB_PATH}`);
 
 // ========== SQLite 数据库 ==========
-// 读写同目录下的 zdb.db，不存在则创建空表
-const DB_PATH = process.env.DB_PATH || join(__dirname, 'zdb.db');
 const db = new Database(DB_PATH);
 
 // 开启 WAL 模式，提升并发读写性能

@@ -12,3 +12,6 @@ audio/*.aac
 zdb.db
 zdb.db-shm
 zdb.db-wal
+
+# 用户配置文件（含真实数据库路径等敏感信息）
+config.json
