@@ -1,0 +1,5 @@
+{
+  "port": 3100,
+  "audioDir": "./audio",
+  "dbPath": "./zdb.db"
+}
