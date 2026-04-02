@@ -1,0 +1,9 @@
+node_modules/
+audio/*.flac
+audio/*.mp3
+audio/*.wav
+audio/*.ogg
+audio/*.m4a
+audio/*.webm
+audio/*.aac
+*.log

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>zDashboard</title>
+    <style>
+        /* ========== 设计令牌 ========== */
+        :root{
+            /* 背景色阶 */
+            --bg:#0c0e14;      /* 主背景（最深） */
+            --bg2:#13151e;     /* 次背景 */
+            --bg3:#1a1d2a;     /* 卡片/元素背景 */
+            /* 边框 */
+            --bdr:#252839;     /* 通用边框色 */
+            /* 文字色阶 */
+            --tx:#dde0ec;      /* 主文字 */
+            --tx2:#7f849a;     /* 次文字 */
+            --tx3:#4a4f68;     /* 弱文字/标签 */
+            /* 强调色 */
+            --ac:#6c5ce7;      /* 主色：紫色 */
+            --ac2:#a29bfe;     /* 主色浅 */
+            /* 语义色 */
+            --grn:#00d2a8;     /* 成功/在线 */
+            --org:#f0b429;     /* 警告/规划中 */
+            --red:#ff6b6b;     /* 错误 */
+            --blu:#5b9cf6;     /* 信息/数据库 */
+            /* 布局尺寸 */
+            --panel-w:240px;   /* 侧栏宽度 */
+            --bar-h:32px;      /* 顶部状态栏高度 */
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{height:100%;overflow:hidden}
+        body{
+            font-family:-apple-system,'SF Pro Display','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+            background:var(--bg);color:var(--tx);
+        }
+
+        /* ========== 竖屏滚动容器 ========== */
+        /* 竖屏模式下唯一的外层容器，fixed全屏覆盖，内部可滚动 */
+        /* 文档流顺序：dash-bar(sticky) → panel-content → main-screen → spacer */
+        #scroller{
+            position:fixed;inset:0;
+            overflow-y:auto;overflow-x:hidden;
+            display:none;              /* 默认隐藏，JS根据方向切换 */
+            flex-direction:column;
+            z-index:1;
+        }
+        #scroller::-webkit-scrollbar{width:4px}
+        #scroller::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* ========== 横屏容器 ========== */
+        /* 横屏模式下唯一的外层容器，flex双栏布局，不滚动 */
+        #landscape{
+            position:fixed;inset:0;
+            display:none;              /* 默认隐藏，JS根据方向切换 */
+            z-index:1;
+        }
+
+        /* ========== 顶部状态栏 ========== */
+        /* 显示logo、各服务状态指标、时钟、在线状态灯 */
+        .dash-bar{
+            display:flex;align-items:center;gap:10px;
+            padding:0 12px;height:var(--bar-h);
+            background:var(--bg2);border-bottom:1px solid var(--bdr);
+            flex-shrink:0;font-size:11px;color:var(--tx2);
+            cursor:default;user-select:none;
+        }
+        /* 竖屏时吸顶：面板滚上去后状态栏仍固定在顶部 */
+        .dash-bar.sticky{
+            position:sticky;top:0;z-index:20;
+        }
+
+        /* logo区域 */
+        .dash-bar .logo{
+            font-size:12px;font-weight:700;letter-spacing:-.3px;
+            display:flex;align-items:center;gap:5px;flex-shrink:0;
+        }
+        /* logo中的"Z"图标方块 */
+        .logo .z{
+            width:18px;height:18px;background:var(--ac);border-radius:4px;
+            display:inline-flex;align-items:center;justify-content:center;
+            font-size:9px;color:#fff;
+        }
+        .dash-bar .spacer{flex:1}
+
+        /* 状态指标（如 zdb 7、MinIO 2.4G） */
+        .si{display:flex;align-items:center;gap:3px;white-space:nowrap}
+        .si .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}   /* 状态圆点 */
+        .si .v{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums} /* 数值 */
+
+        /* 时钟 */
+        .clk{font-variant-numeric:tabular-nums;color:var(--tx3)}
+
+        /* 在线状态灯（绿色发光小圆点） */
+        .online-dot{
+            width:5px;height:5px;border-radius:50%;
+            background:var(--grn);box-shadow:0 0 4px var(--grn);flex-shrink:0;
+        }
+
+        /* ========== 面板内容区（Projects + Tools列表） ========== */
+        .panel-content{
+            flex-shrink:0;
+            transition:max-height .3s ease,opacity .2s ease;  /* 收起动画 */
+            overflow:hidden;
+        }
+        /* 收起状态：高度归零 + 透明 */
+        .panel-content.collapsed{
+            max-height:0!important;opacity:0;
+        }
+
+        /* 分区标题（如 "PROJECTS"、"TOOLS"） */
+        .sec-title{
+            padding:8px 12px 4px;font-size:9px;font-weight:600;
+            text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);
+        }
+        /* 分区分隔线 */
+        .sec-div{height:1px;background:var(--bdr);margin:3px 12px}
+
+        /* 项目列表行 */
+        .pr{
+            display:flex;align-items:center;gap:7px;
+            padding:5px 12px;cursor:pointer;transition:background .12s;
+        }
+        .pr:hover{background:var(--bg2)}
+        /* 项目图标（22px方形，后续可放项目图片） */
+        .pr-i{
+            width:22px;height:22px;border-radius:4px;background:var(--bg3);
+            flex-shrink:0;display:flex;align-items:center;justify-content:center;
+            font-size:9px;color:var(--tx3);overflow:hidden;
+        }
+        .pr-i img{width:100%;height:100%;object-fit:cover}
+        /* 项目名称 */
+        .pr-n{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        /* 项目状态圆点 */
+        .pr-s{margin-left:auto;width:5px;height:5px;border-radius:50%;flex-shrink:0}
+        .pr-s.a{background:var(--grn)}   /* 进行中：绿色 */
+        .pr-s.m{background:var(--blu)}   /* 维护中：蓝色 */
+        .pr-s.p{background:var(--org)}   /* 规划中：橙色 */
+
+        /* 工具列表行 */
+        .tl{
+            display:flex;align-items:center;gap:7px;
+            padding:5px 12px;cursor:pointer;transition:background .12s;
+            font-size:11px;color:var(--tx2);
+        }
+        .tl:hover{background:var(--bg2);color:var(--tx)}
+        /* 工具角标（如日记的"3篇"、提醒的"2条"） */
+        .tl .bd{
+            margin-left:auto;font-size:9px;
+            background:rgba(0,210,168,.1);color:var(--grn);
+            padding:1px 5px;border-radius:6px;
+        }
+
+        /* ========== 主显示区（1:1正方形） ========== */
+        /* 用于嵌入WASM游戏、Web应用等，UI与显示区解耦 */
+        .main-screen{
+            display:flex;align-items:center;justify-content:center;
+            overflow:hidden;flex-shrink:0;
+            background:#000;border-radius:10px;
+            border:1px solid rgba(108,92,231,.35);
+            box-shadow:
+                0 0 0 1px rgba(108,92,231,.08),    /* 外圈微光 */
+                0 0 20px rgba(108,92,231,.06),      /* 紫色辉光 */
+                inset 0 0 30px rgba(0,0,0,.4);      /* 内阴影增加深度 */
+        }
+        /* 占位符文字（无应用运行时显示） */
+        .ms-ph{color:var(--tx3);text-align:center;font-size:11px}
+        .ms-ph .b{font-size:28px;opacity:.2;display:block;margin-bottom:4px}
+
+        /* ========== 横屏专用样式 ========== */
+        /* 左栏：dash-bar + panel-content 纵向排列 */
+        .ls-left{
+            width:var(--panel-w);height:100%;
+            display:flex;flex-direction:column;
+            background:var(--bg);border-right:1px solid var(--bdr);
+            flex-shrink:0;
+        }
+        /* 横屏下面板内容可滚动，不受collapsed限制 */
+        .ls-left .panel-content{
+            flex:1;overflow-y:auto;
+            max-height:none!important;opacity:1!important;
+        }
+        .ls-left .panel-content::-webkit-scrollbar{width:3px}
+        .ls-left .panel-content::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* 右栏：主显示区的容器 */
+        .ls-right{
+            flex:1;position:relative;min-width:0;min-height:0;
+            background:var(--bg2);
+        }
+
+        /* ========== 音频播放器 ========== */
+        /* 固定在底部，半透明背景，显示当前播放状态 */
+        .audio-bar{
+            position:fixed;bottom:0;left:0;right:0;
+            height:36px;z-index:100;
+            display:flex;align-items:center;gap:8px;
+            padding:0 12px;
+            background:rgba(19,21,30,.92);
+            backdrop-filter:blur(8px);
+            border-top:1px solid var(--bdr);
+            font-size:11px;color:var(--tx2);
+            transform:translateY(100%);    /* 默认隐藏 */
+            transition:transform .25s ease;
+        }
+        .audio-bar.visible{transform:translateY(0)}  /* 有音频时显示 */
+        /* 播放状态指示灯 */
+        .audio-bar .ab-dot{
+            width:6px;height:6px;border-radius:50%;flex-shrink:0;
+            background:var(--grn);
+        }
+        .audio-bar .ab-dot.playing{animation:pulse 1.2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+        /* 当前文件名 */
+        .audio-bar .ab-name{
+            flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            color:var(--tx);font-weight:500;
+        }
+        /* 队列计数角标 */
+        .audio-bar .ab-badge{
+            font-size:9px;background:rgba(108,92,231,.15);color:var(--ac2);
+            padding:1px 6px;border-radius:6px;
+        }
+        /* WS连接状态 */
+        .audio-bar .ab-ws{
+            font-size:9px;color:var(--tx3);flex-shrink:0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== 竖屏布局 ===== -->
+<!-- 文档流：sticky状态栏 → 面板内容 → 正方形显示区 → 底部弹性空间 -->
+<!-- 向上滚动时面板自然收起，状态栏始终吸顶 -->
+<div id="scroller">
+    <!-- 顶部状态栏（竖屏：sticky吸顶） -->
+    <div class="dash-bar sticky" id="barP">
+        <div class="logo"><span class="z">Z</span>Dash</div>
+        <div class="spacer"></div>
+        <div class="si"><span class="d" style="background:var(--blu)"></span>zdb <span class="v">7</span></div>
+        <div class="si"><span class="d" style="background:var(--grn)"></span>MinIO <span class="v">2.4G</span></div>
+        <div class="si"><span class="d" style="background:var(--org)"></span>HS <span class="v">3</span></div>
+        <div class="spacer"></div>
+        <span class="clk" id="clockP"></span>
+        <span class="online-dot"></span>
+    </div>
+    <!-- 面板内容（Projects列表 + Tools列表） -->
+    <div class="panel-content" id="panelP" style="background:var(--bg);border-bottom:1px solid var(--bdr)">
+        <div class="sec-title">Projects</div>
+        <div class="pr"><div class="pr-i">D</div><span class="pr-n">zDashboard</span><span class="pr-s a"></span></div>
+        <div class="pr"><div class="pr-i">A</div><span class="pr-n">agent_properties</span><span class="pr-s m"></span></div>
+        <div class="pr"><div class="pr-i">W</div><span class="pr-n">WASM Classics</span><span class="pr-s p"></span></div>
+        <div class="pr"><div class="pr-i">V</div><span class="pr-n">Vocab Builder</span><span class="pr-s p"></span></div>
+        <div class="sec-div"></div>
+        <div class="sec-title">Tools</div>
+        <div class="tl">&#x1F4DD; Diary <span class="bd">3</span></div>
+        <div class="tl">&#x1F4B0; Finance</div>
+        <div class="tl">&#x23F0; Reminders <span class="bd">2</span></div>
+        <div class="tl">&#x1F4CA; Data Browser</div>
+    </div>
+    <!-- 主显示区（1:1正方形） -->
+    <div class="main-screen" id="screenP">
+        <div class="ms-ph">
+            <span class="b">&#x25A1;</span>
+            1 : 1
+        </div>
+    </div>
+    <!-- 底部弹性空间：确保总高度超过视口，使滚动成为可能 -->
+    <div id="portSpacer" style="flex-shrink:0"></div>
+</div>
+
+<!-- ===== 横屏布局 ===== -->
+<!-- flex双栏：左栏(dash-bar+面板) | 右栏(正方形显示区) -->
+<div id="landscape" style="display:flex">
+    <!-- 左栏 -->
+    <div class="ls-left">
+        <!-- 顶部状态栏（横屏：不吸顶，固定在左栏顶部） -->
+        <div class="dash-bar" id="barL">
+            <div class="logo"><span class="z">Z</span>Dash</div>
+            <div class="spacer"></div>
+            <div class="si"><span class="d" style="background:var(--blu)"></span>zdb <span class="v">7</span></div>
+            <div class="si"><span class="d" style="background:var(--grn)"></span>MinIO <span class="v">2.4G</span></div>
+            <div class="si"><span class="d" style="background:var(--org)"></span>HS <span class="v">3</span></div>
+            <div class="spacer"></div>
+            <span class="clk" id="clockL"></span>
+            <span class="online-dot"></span>
+        </div>
+        <!-- 面板内容（横屏下可独立滚动） -->
+        <div class="panel-content">
+            <div class="sec-title">Projects</div>
+            <div class="pr"><div class="pr-i">D</div><span class="pr-n">zDashboard</span><span class="pr-s a"></span></div>
+            <div class="pr"><div class="pr-i">A</div><span class="pr-n">agent_properties</span><span class="pr-s m"></span></div>
+            <div class="pr"><div class="pr-i">W</div><span class="pr-n">WASM Classics</span><span class="pr-s p"></span></div>
+            <div class="pr"><div class="pr-i">V</div><span class="pr-n">Vocab Builder</span><span class="pr-s p"></span></div>
+            <div class="sec-div"></div>
+            <div class="sec-title">Tools</div>
+            <div class="tl">&#x1F4DD; Diary <span class="bd">3</span></div>
+            <div class="tl">&#x1F4B0; Finance</div>
+            <div class="tl">&#x23F0; Reminders <span class="bd">2</span></div>
+            <div class="tl">&#x1F4CA; Data Browser</div>
+        </div>
+    </div>
+    <!-- 右栏：主显示区容器 -->
+    <div class="ls-right" id="lsRight">
+        <div class="main-screen" id="screenL">
+            <div class="ms-ph">
+                <span class="b">&#x25A1;</span>
+                1 : 1
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 音频播放器 -->
+<div class="audio-bar" id="audioBar">
+    <span class="ab-dot" id="abDot"></span>
+    <span class="ab-name" id="abName">--</span>
+    <span class="ab-badge" id="abBadge" style="display:none">队列 0</span>
+    <span class="ab-ws" id="abWs">connecting...</span>
+</div>
+
+<script>
+// ========== 音频播放器 ==========
+const audioBar = document.getElementById('audioBar');
+const abDot = document.getElementById('abDot');
+const abName = document.getElementById('abName');
+const abBadge = document.getElementById('abBadge');
+const abWs = document.getElementById('abWs');
+
+// 隐藏的 <audio> 元素
+const audioEl = new Audio();
+let currentPlayId = null;
+let wsQueueCount = 0;
+
+// 更新队列角标
+function updateBadge(count) {
+    wsQueueCount = count;
+    if (count > 0) {
+        abBadge.textContent = `队列 ${count}`;
+        abBadge.style.display = '';
+    } else {
+        abBadge.style.display = 'none';
+    }
+}
+
+// 播放音频
+function playAudio(id, url, fileName) {
+    currentPlayId = id;
+    abName.textContent = fileName;
+    abDot.classList.add('playing');
+    audioBar.classList.add('visible');
+
+    // 加时间戳避免浏览器缓存
+    audioEl.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+    audioEl.play().catch(e => console.warn('[audio] 自动播放被阻止:', e));
+}
+
+// 音频播放结束 → 通知后端播放下一首
+audioEl.addEventListener('ended', () => {
+    abDot.classList.remove('playing');
+    abName.textContent = '--';
+    if (ws && ws.readyState === 1 && currentPlayId !== null) {
+        ws.send(JSON.stringify({ event: 'ended', data: { id: currentPlayId } }));
+        currentPlayId = null;
+    }
+});
+
+// ========== WebSocket 连接 ==========
+function wsUrl() {
+    const p = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${p}//${location.host}/ws`;
+}
+
+let ws;
+let wsRetryTimer = null;
+
+function connectWs() {
+    ws = new WebSocket(wsUrl());
+    abWs.textContent = 'connecting...';
+
+    ws.addEventListener('open', () => {
+        abWs.textContent = 'live';
+        abWs.style.color = 'var(--grn)';
+        // 清理重连定时器
+        if (wsRetryTimer) { clearTimeout(wsRetryTimer); wsRetryTimer = null; }
+    });
+
+    ws.addEventListener('message', (e) => {
+        const msg = JSON.parse(e.data);
+        switch (msg.event) {
+            case 'play':
+                // 后端要求播放新音频
+                playAudio(msg.data.id, msg.data.url, msg.data.fileName);
+                break;
+            case 'queued':
+                // 有新音频入队
+                updateBadge(msg.data.position);
+                break;
+            case 'sync':
+                // 同步队列状态（重连时）
+                updateBadge(msg.data.queue?.length || 0);
+                break;
+            case 'cleared':
+                updateBadge(0);
+                break;
+        }
+    });
+
+    ws.addEventListener('close', () => {
+        abWs.textContent = 'offline';
+        abWs.style.color = 'var(--red)';
+        // 3秒后自动重连
+        wsRetryTimer = setTimeout(connectWs, 3000);
+    });
+
+    ws.addEventListener('error', () => {});
+}
+
+connectWs();
+
+// ========== 时钟 ==========
+// 每15秒更新一次，同时刷新竖屏和横屏两个时钟元素
+function tick(){
+    const n=new Date,p=v=>String(v).padStart(2,'0');
+    const t=`${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}`;
+    document.getElementById('clockP').textContent=t;
+    document.getElementById('clockL').textContent=t;
+}
+tick();setInterval(tick,15000);
+
+// ========== DOM引用 ==========
+const scroller=document.getElementById('scroller');     // 竖屏滚动容器
+const landscape=document.getElementById('landscape');   // 横屏容器
+const panelP=document.getElementById('panelP');         // 竖屏面板内容
+const screenP=document.getElementById('screenP');       // 竖屏正方形显示区
+const screenL=document.getElementById('screenL');       // 横屏正方形显示区
+const lsRight=document.getElementById('lsRight');       // 横屏右栏容器
+const spacer=document.getElementById('portSpacer');     // 竖屏底部弹性空间
+
+// ========== 方向检测 ==========
+// 宽度<769px视为竖屏（手机/平板竖持），否则横屏
+function isMobile(){return window.innerWidth<769}
+
+// ========== 布局切换 ==========
+// 根据屏幕方向显示对应容器，隐藏另一个，并计算正方形尺寸
+function layout(){
+    if(isMobile()){
+        scroller.style.display='flex';
+        landscape.style.display='none';
+        fitPortrait();
+    }else{
+        scroller.style.display='none';
+        landscape.style.display='flex';
+        fitLandscape();
+    }
+}
+
+// ========== 竖屏正方形尺寸计算 ==========
+// 正方形边长 = min(视口宽, 视口高) - 16px内边距
+// 水平居中显示，通过spacer确保可滚动
+function fitPortrait(){
+    const vw=window.innerWidth;
+    const vh=window.innerHeight;
+    const pad=16;
+    const s=Math.min(vw,vh)-pad;
+    if(s<=0)return;
+    screenP.style.width=s+'px';
+    screenP.style.height=s+'px';
+    screenP.style.margin='8px auto';        // 水平居中
+    screenP.style.position='relative';
+    screenP.style.top='';screenP.style.left='';
+    // 确保总内容高度 > 视口高度，使滚动成为可能
+    // 公式：状态栏(32) + 正方形 + 间距(16) + 面板高度 应大于视口高度
+    const totalNeeded=32+s+16+panelP.getBoundingClientRect().height;
+    spacer.style.height=Math.max(0,vh-totalNeeded+100)+'px';
+}
+
+// ========== 横屏正方形尺寸计算 ==========
+// 正方形边长 = min(视口宽, 视口高) - 16px
+// 紧贴左栏右侧（left:8px），在右栏内垂直居中
+function fitLandscape(){
+    const vw=window.innerWidth;
+    const vh=window.innerHeight;
+    const pad=16;
+    const s=Math.min(vw,vh)-pad;
+    if(s<=0)return;
+    const aw=lsRight.clientWidth;
+    const ah=lsRight.clientHeight;
+    screenL.style.width=s+'px';
+    screenL.style.height=s+'px';
+    screenL.style.position='absolute';
+    screenL.style.top=Math.max(0,Math.floor((ah-s)/2))+'px';  // 垂直居中
+    screenL.style.left='8px';                                  // 紧贴左栏
+    screenL.style.margin='0';
+}
+
+// ========== 竖屏滚动收起面板 ==========
+// 当用户向上滚动超过面板高度时，面板自动折叠（高度归零）
+// 回滚到面板高度以下时，面板恢复展开
+let panelCollapsed=false;   // 面板是否已收起
+let savedPanelH=0;          // 缓存面板展开时的实际高度
+
+scroller.addEventListener('scroll',()=>{
+    if(!isMobile())return;
+    // 首次滚动时缓存面板高度
+    if(!savedPanelH) savedPanelH=panelP.scrollHeight||panelP.getBoundingClientRect().height;
+    // 滚动超过面板高度 → 收起
+    if(scroller.scrollTop>savedPanelH && !panelCollapsed){
+        panelCollapsed=true;
+        panelP.classList.add('collapsed');
+    // 回滚到面板高度以内 → 展开
+    }else if(scroller.scrollTop<=savedPanelH && panelCollapsed){
+        panelCollapsed=false;
+        panelP.classList.remove('collapsed');
+    }
+});
+
+// ========== 初始化 ==========
+layout();
+window.addEventListener('resize',()=>{
+    // 窗口尺寸变化时重置收起状态并重新布局
+    panelCollapsed=false;savedPanelH=0;
+    panelP.classList.remove('collapsed');
+    layout();
+});
+// 监听document尺寸变化（如浏览器DevTools resize）
+new ResizeObserver(layout).observe(document.documentElement);
+</script>
+</body>
+</html>
