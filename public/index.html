@@ -28,6 +28,11 @@
             /* 布局尺寸 */
             --panel-w:240px;   /* 侧栏宽度 */
             --bar-h:32px;      /* 顶部状态栏高度 */
+            /* 词汇状态色 */
+            --vocab-familiar:rgba(240,180,41,.18);       /* 不熟练：黄色半透明背景 */
+            --vocab-familiar-border:rgba(240,180,41,.35);
+            --vocab-unknown:rgba(255,107,107,.15);       /* 陌生：浅红色半透明背景 */
+            --vocab-unknown-border:rgba(255,107,107,.3);
         }
         *{margin:0;padding:0;box-sizing:border-box}
         html,body{height:100%;overflow:hidden}
@@ -145,6 +150,11 @@
             font-size:11px;color:var(--tx2);
         }
         .tl:hover{background:var(--bg2);color:var(--tx)}
+        /* 工具激活状态：左侧紫色边框 + 白色文字 */
+        .tl.active{
+            background:rgba(108,92,231,.1);color:var(--tx);
+            border-left:2px solid var(--ac);padding-left:10px;
+        }
         /* 工具角标（如日记的"3篇"、提醒的"2条"） */
         .tl .bd{
             margin-left:auto;font-size:9px;
@@ -152,17 +162,17 @@
             padding:1px 5px;border-radius:6px;
         }
 
-        /* ========== 主显示区（1:1正方形） ========== */
-        /* 用于嵌入WASM游戏、Web应用等，UI与显示区解耦 */
+        /* ========== 主显示区 ========== */
+        /* 不再强制 1:1，改为自适应容器，由各模块自行布局 */
         .main-screen{
-            display:flex;align-items:center;justify-content:center;
+            display:flex;flex-direction:column;
             overflow:hidden;flex-shrink:0;
-            background:#000;border-radius:10px;
+            background:var(--bg);border-radius:10px;
             border:1px solid rgba(108,92,231,.35);
             box-shadow:
-                0 0 0 1px rgba(108,92,231,.08),    /* 外圈微光 */
-                0 0 20px rgba(108,92,231,.06),      /* 紫色辉光 */
-                inset 0 0 30px rgba(0,0,0,.4);      /* 内阴影增加深度 */
+                0 0 0 1px rgba(108,92,231,.08),
+                0 0 20px rgba(108,92,231,.06),
+                inset 0 0 30px rgba(0,0,0,.4);
         }
         /* 占位符文字（无应用运行时显示） */
         .ms-ph{color:var(--tx3);text-align:center;font-size:11px}
@@ -188,6 +198,7 @@
         .ls-right{
             flex:1;position:relative;min-width:0;min-height:0;
             background:var(--bg2);
+            padding:8px;    /* 给主显示区一点呼吸空间 */
         }
 
         /* ========== 音频播放器 ========== */
@@ -226,13 +237,213 @@
         .audio-bar .ab-ws{
             font-size:9px;color:var(--tx3);flex-shrink:0;
         }
+
+        /* ========== 英语学习模块 ========== */
+
+        /* 模块容器：填满主显示区 */
+        .vocab-app{
+            display:flex;flex-direction:column;
+            width:100%;height:100%;
+            overflow:hidden;
+        }
+
+        /* 模块顶栏：标题 + 统计 + 操作按钮 */
+        .vocab-header{
+            display:flex;align-items:center;gap:8px;
+            padding:8px 12px;
+            background:var(--bg2);border-bottom:1px solid var(--bdr);
+            flex-shrink:0;
+        }
+        .vocab-header .vh-title{
+            font-size:13px;font-weight:600;flex-shrink:0;
+        }
+        .vocab-header .vh-spacer{flex:1}
+        .vocab-header .vh-stats{
+            font-size:10px;color:var(--tx3);
+            display:flex;gap:8px;
+        }
+        .vocab-header .vh-stats span{white-space:nowrap}
+        /* 统计数字高亮 */
+        .vocab-header .vh-stats .num{color:var(--tx);font-weight:600}
+
+        /* 通用小按钮 */
+        .vb{
+            padding:4px 10px;border-radius:6px;font-size:10px;font-weight:500;
+            border:1px solid var(--bdr);background:var(--bg3);color:var(--tx2);
+            cursor:pointer;transition:all .15s;white-space:nowrap;
+        }
+        .vb:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .vb.danger:hover{background:var(--red);border-color:var(--red);color:#fff}
+
+        /* 模块主体区域：文章列表 + 阅读区 */
+        .vocab-body{
+            display:flex;flex:1;overflow:hidden;
+        }
+
+        /* ----- 文章列表侧栏 ----- */
+        .vocab-sidebar{
+            width:180px;flex-shrink:0;
+            border-right:1px solid var(--bdr);
+            display:flex;flex-direction:column;
+            background:var(--bg);
+        }
+        .vocab-sidebar .vs-header{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:8px 10px;font-size:10px;font-weight:600;
+            color:var(--tx3);text-transform:uppercase;letter-spacing:.6px;
+            border-bottom:1px solid var(--bdr);
+        }
+        /* 文章列表（可滚动） */
+        .vocab-sidebar .vs-list{
+            flex:1;overflow-y:auto;
+        }
+        .vocab-sidebar .vs-list::-webkit-scrollbar{width:3px}
+        .vocab-sidebar .vs-list::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* 单篇文章行 */
+        .vs-item{
+            padding:8px 10px;cursor:pointer;
+            border-bottom:1px solid var(--bdr);
+            transition:background .12s;
+        }
+        .vs-item:hover{background:var(--bg2)}
+        .vs-item.active{background:rgba(108,92,231,.08);border-left:2px solid var(--ac)}
+        .vs-item .vs-title{
+            font-size:11px;font-weight:500;color:var(--tx);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .vs-item .vs-meta{
+            font-size:9px;color:var(--tx3);margin-top:2px;
+            display:flex;justify-content:space-between;
+        }
+        /* 文章删除按钮 */
+        .vs-item .vs-del{
+            opacity:0;transition:opacity .15s;
+            background:none;border:none;color:var(--red);
+            cursor:pointer;font-size:11px;padding:0 2px;
+        }
+        .vs-item:hover .vs-del{opacity:1}
+
+        /* ----- 阅读区 ----- */
+        .vocab-reader{
+            flex:1;overflow-y:auto;padding:16px;
+        }
+        .vocab-reader::-webkit-scrollbar{width:4px}
+        .vocab-reader::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* 空状态提示 */
+        .vocab-empty{
+            display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            height:100%;color:var(--tx3);text-align:center;
+        }
+        .vocab-empty .ve-icon{font-size:36px;opacity:.3;margin-bottom:8px}
+        .vocab-empty p{font-size:12px;line-height:1.6}
+
+        /* 输入区：文本框 + 分析按钮 */
+        .vocab-input{
+            margin-bottom:16px;
+        }
+        .vocab-input textarea{
+            width:100%;min-height:120px;max-height:200px;
+            padding:10px 12px;border-radius:8px;
+            background:var(--bg2);border:1px solid var(--bdr);
+            color:var(--tx);font-size:13px;line-height:1.6;
+            resize:vertical;outline:none;
+            font-family:inherit;
+        }
+        .vocab-input textarea:focus{border-color:var(--ac)}
+        .vocab-input textarea::placeholder{color:var(--tx3)}
+        .vocab-input .vi-actions{
+            display:flex;gap:8px;margin-top:8px;justify-content:flex-end;
+        }
+
+        /* 文章标题（阅读区顶部） */
+        .vocab-article-title{
+            font-size:15px;font-weight:600;margin-bottom:12px;
+            padding-bottom:8px;border-bottom:1px solid var(--bdr);
+            color:var(--tx);
+        }
+
+        /* 分词后的文章正文 */
+        .vocab-text{
+            font-size:14px;line-height:2;
+            color:var(--tx);
+        }
+
+        /* ----- 单词样式（三种状态） ----- */
+        /* 每个单词都是行内块，可点击 */
+        .vw{
+            display:inline-block;
+            padding:1px 4px;margin:1px 1px;
+            border-radius:4px;
+            cursor:pointer;
+            transition:all .12s;
+            user-select:none;
+        }
+        .vw:hover{opacity:.8}
+        /* 已掌握（mastered）：默认背景，无特殊样式 */
+        .vw.mastered{
+            background:transparent;
+        }
+        /* 不熟练（familiar）：黄色圆角背景 */
+        .vw.familiar{
+            background:var(--vocab-familiar);
+            border:1px solid var(--vocab-familiar-border);
+            border-radius:5px;
+        }
+        /* 陌生（unknown）：浅红色圆角背景 */
+        .vw.unknown{
+            background:var(--vocab-unknown);
+            border:1px solid var(--vocab-unknown-border);
+            border-radius:5px;
+        }
+        /* 非单词字符（标点、空格、换行等） */
+        .vw-sep{
+            display:inline;
+        }
+
+        /* ----- 单词详情弹窗 ----- */
+        .word-popup{
+            position:fixed;z-index:200;
+            background:var(--bg3);border:1px solid var(--bdr);
+            border-radius:8px;padding:10px 14px;
+            box-shadow:0 4px 20px rgba(0,0,0,.5);
+            font-size:12px;min-width:160px;
+            display:none;
+        }
+        .word-popup.show{display:block}
+        .word-popup .wp-word{
+            font-size:16px;font-weight:700;margin-bottom:6px;
+        }
+        .word-popup .wp-status{
+            margin-bottom:6px;display:flex;gap:4px;
+        }
+        .word-popup .wp-status .wb{
+            padding:3px 8px;border-radius:4px;font-size:10px;
+            cursor:pointer;border:1px solid var(--bdr);
+            background:var(--bg2);color:var(--tx2);transition:all .12s;
+        }
+        .word-popup .wp-status .wb.active{border-color:var(--ac);color:var(--tx);background:rgba(108,92,231,.15)}
+        .word-popup .wp-articles{
+            font-size:10px;color:var(--tx3);margin-top:6px;
+            border-top:1px solid var(--bdr);padding-top:6px;
+            max-height:120px;overflow-y:auto;
+        }
+        .word-popup .wp-articles div{
+            padding:2px 0;cursor:pointer;
+        }
+        .word-popup .wp-articles div:hover{color:var(--tx)}
+        .word-popup .wp-close{
+            position:absolute;top:4px;right:8px;
+            background:none;border:none;color:var(--tx3);
+            cursor:pointer;font-size:14px;
+        }
     </style>
 </head>
 <body>
 
 <!-- ===== 竖屏布局 ===== -->
-<!-- 文档流：sticky状态栏 → 面板内容 → 正方形显示区 → 底部弹性空间 -->
-<!-- 向上滚动时面板自然收起，状态栏始终吸顶 -->
 <div id="scroller">
     <!-- 顶部状态栏（竖屏：sticky吸顶） -->
     <div class="dash-bar sticky" id="barP">
@@ -254,28 +465,29 @@
         <div class="pr"><div class="pr-i">V</div><span class="pr-n">Vocab Builder</span><span class="pr-s p"></span></div>
         <div class="sec-div"></div>
         <div class="sec-title">Tools</div>
+        <div class="tl" data-app="vocab" onclick="switchApp('vocab')">&#x1F4DA; Vocab Builder <span class="bd" id="badgeVocab"></span></div>
+        <div class="tl" data-app="null" onclick="switchApp(null)">&#x2716; Empty</div>
         <div class="tl">&#x1F4DD; Diary <span class="bd">3</span></div>
         <div class="tl">&#x1F4B0; Finance</div>
         <div class="tl">&#x23F0; Reminders <span class="bd">2</span></div>
         <div class="tl">&#x1F4CA; Data Browser</div>
     </div>
-    <!-- 主显示区（1:1正方形） -->
+    <!-- 主显示区 -->
     <div class="main-screen" id="screenP">
         <div class="ms-ph">
             <span class="b">&#x25A1;</span>
             1 : 1
         </div>
     </div>
-    <!-- 底部弹性空间：确保总高度超过视口，使滚动成为可能 -->
+    <!-- 底部弹性空间 -->
     <div id="portSpacer" style="flex-shrink:0"></div>
 </div>
 
 <!-- ===== 横屏布局 ===== -->
-<!-- flex双栏：左栏(dash-bar+面板) | 右栏(正方形显示区) -->
 <div id="landscape" style="display:flex">
     <!-- 左栏 -->
     <div class="ls-left">
-        <!-- 顶部状态栏（横屏：不吸顶，固定在左栏顶部） -->
+        <!-- 顶部状态栏（横屏：不吸顶） -->
         <div class="dash-bar" id="barL">
             <div class="logo"><span class="z">Z</span>Dash</div>
             <div class="spacer"></div>
@@ -295,6 +507,8 @@
             <div class="pr"><div class="pr-i">V</div><span class="pr-n">Vocab Builder</span><span class="pr-s p"></span></div>
             <div class="sec-div"></div>
             <div class="sec-title">Tools</div>
+            <div class="tl" data-app="vocab" onclick="switchApp('vocab')">&#x1F4DA; Vocab Builder <span class="bd" id="badgeVocabL"></span></div>
+            <div class="tl" data-app="null" onclick="switchApp(null)">&#x2716; Empty</div>
             <div class="tl">&#x1F4DD; Diary <span class="bd">3</span></div>
             <div class="tl">&#x1F4B0; Finance</div>
             <div class="tl">&#x23F0; Reminders <span class="bd">2</span></div>
@@ -318,6 +532,14 @@
     <span class="ab-name" id="abName">--</span>
     <span class="ab-badge" id="abBadge" style="display:none">队列 0</span>
     <span class="ab-ws" id="abWs">connecting...</span>
+</div>
+
+<!-- 单词详情弹窗 -->
+<div class="word-popup" id="wordPopup">
+    <button class="wp-close" onclick="closeWordPopup()">&times;</button>
+    <div class="wp-word" id="wpWord"></div>
+    <div class="wp-status" id="wpStatus"></div>
+    <div class="wp-articles" id="wpArticles"></div>
 </div>
 
 <script>
@@ -350,8 +572,6 @@ function playAudio(id, url, fileName) {
     abName.textContent = fileName;
     abDot.classList.add('playing');
     audioBar.classList.add('visible');
-
-    // 加时间戳避免浏览器缓存
     audioEl.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
     audioEl.play().catch(e => console.warn('[audio] 自动播放被阻止:', e));
 }
@@ -382,7 +602,6 @@ function connectWs() {
     ws.addEventListener('open', () => {
         abWs.textContent = 'live';
         abWs.style.color = 'var(--grn)';
-        // 清理重连定时器
         if (wsRetryTimer) { clearTimeout(wsRetryTimer); wsRetryTimer = null; }
     });
 
@@ -390,15 +609,12 @@ function connectWs() {
         const msg = JSON.parse(e.data);
         switch (msg.event) {
             case 'play':
-                // 后端要求播放新音频
                 playAudio(msg.data.id, msg.data.url, msg.data.fileName);
                 break;
             case 'queued':
-                // 有新音频入队
                 updateBadge(msg.data.position);
                 break;
             case 'sync':
-                // 同步队列状态（重连时）
                 updateBadge(msg.data.queue?.length || 0);
                 break;
             case 'cleared':
@@ -410,7 +626,6 @@ function connectWs() {
     ws.addEventListener('close', () => {
         abWs.textContent = 'offline';
         abWs.style.color = 'var(--red)';
-        // 3秒后自动重连
         wsRetryTimer = setTimeout(connectWs, 3000);
     });
 
@@ -420,7 +635,6 @@ function connectWs() {
 connectWs();
 
 // ========== 时钟 ==========
-// 每15秒更新一次，同时刷新竖屏和横屏两个时钟元素
 function tick(){
     const n=new Date,p=v=>String(v).padStart(2,'0');
     const t=`${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}`;
@@ -430,21 +644,420 @@ function tick(){
 tick();setInterval(tick,15000);
 
 // ========== DOM引用 ==========
-const scroller=document.getElementById('scroller');     // 竖屏滚动容器
-const landscape=document.getElementById('landscape');   // 横屏容器
-const panelP=document.getElementById('panelP');         // 竖屏面板内容
-const screenP=document.getElementById('screenP');       // 竖屏正方形显示区
-const screenL=document.getElementById('screenL');       // 横屏正方形显示区
-const lsRight=document.getElementById('lsRight');       // 横屏右栏容器
-const spacer=document.getElementById('portSpacer');     // 竖屏底部弹性空间
+const scroller=document.getElementById('scroller');
+const landscape=document.getElementById('landscape');
+const panelP=document.getElementById('panelP');
+const screenP=document.getElementById('screenP');
+const screenL=document.getElementById('screenL');
+const lsRight=document.getElementById('lsRight');
+const spacer=document.getElementById('portSpacer');
+
+// ========== 应用切换框架 ==========
+// currentApp: 当前激活的应用 ID（null 表示空）
+let currentApp = null;
+
+// 获取当前活跃的主显示区 DOM
+function getActiveScreen() {
+    return isMobile() ? screenP : screenL;
+}
+
+// 切换应用
+// app: 'vocab' | null | 其他模块名
+function switchApp(app) {
+    currentApp = app;
+    const screen = getActiveScreen();
+
+    // 更新所有 .tl 的激活状态
+    document.querySelectorAll('.tl[data-app]').forEach(el => {
+        el.classList.toggle('active', el.dataset.app === app);
+    });
+
+    // 清空主显示区
+    screen.innerHTML = '';
+
+    if (app === 'vocab') {
+        screen.style.background = 'var(--bg)';
+        screen.style.border = '1px solid rgba(108,92,231,.35)';
+        renderVocabApp(screen);
+    } else if (app === null) {
+        // 空状态
+        screen.style.background = '#000';
+        screen.innerHTML = '<div class="ms-ph"><span class="b">&#x25A1;</span>1 : 1</div>';
+    } else {
+        screen.style.background = '#000';
+        screen.innerHTML = `<div class="ms-ph"><span class="b">&#x25A1;</span>${app}</div>`;
+    }
+
+    // 切换应用后重新布局（因为内容高度可能变化）
+    requestAnimationFrame(layout);
+}
+
+// ========== 英语学习模块 ==========
+
+// 模块状态
+const vocabState = {
+    articles: [],          // 文章列表
+    currentArticle: null,  // 当前加载的文章详情 {id, title, content, words}
+    loading: false,
+};
+
+// 渲染整个英语学习模块
+function renderVocabApp(container) {
+    container.innerHTML = `
+        <div class="vocab-app">
+            <div class="vocab-header">
+                <span class="vh-title">&#x1F4DA; Vocab Builder</span>
+                <div class="vh-stats" id="vocabStats"></div>
+                <div class="vh-spacer"></div>
+            </div>
+            <div class="vocab-body">
+                <div class="vocab-sidebar">
+                    <div class="vs-header">
+                        <span>Articles</span>
+                    </div>
+                    <div class="vs-list" id="articleList"></div>
+                </div>
+                <div class="vocab-reader" id="vocabReader">
+                    <div class="vocab-input">
+                        <textarea id="newArticleText" placeholder="粘贴英文文章到这里..."></textarea>
+                        <div class="vi-actions">
+                            <button class="vb" onclick="analyzeArticle()">分析文章</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 加载文章列表和统计
+    loadArticles();
+    loadVocabStats();
+}
+
+// 加载词汇统计
+async function loadVocabStats() {
+    try {
+        const res = await fetch('/api/vocab/stats');
+        const s = await res.json();
+        const el = document.getElementById('vocabStats');
+        if (el) {
+            el.innerHTML = `
+                <span>词 <span class="num">${s.total||0}</span></span>
+                <span style="color:var(--grn)">+${s.mastered||0}</span>
+                <span style="color:var(--org)">~${s.familiar||0}</span>
+                <span style="color:var(--red)">?${s.unknown||0}</span>
+            `;
+        }
+    } catch(e) { console.warn('[vocab] stats加载失败:', e); }
+}
+
+// 加载文章列表
+async function loadArticles() {
+    try {
+        const res = await fetch('/api/articles');
+        vocabState.articles = await res.json();
+        renderArticleList();
+    } catch(e) { console.warn('[vocab] 文章列表加载失败:', e); }
+}
+
+// 渲染文章列表侧栏
+function renderArticleList() {
+    const el = document.getElementById('articleList');
+    if (!el) return;
+
+    if (vocabState.articles.length === 0) {
+        el.innerHTML = '<div style="padding:12px;color:var(--tx3);font-size:10px;text-align:center">暂无文章</div>';
+        return;
+    }
+
+    el.innerHTML = vocabState.articles.map(a => `
+        <div class="vs-item ${vocabState.currentArticle && vocabState.currentArticle.id === a.id ? 'active' : ''}"
+             onclick="loadArticle(${a.id})">
+            <div class="vs-title">${escHtml(a.title)}</div>
+            <div class="vs-meta">
+                <span>${a.word_count||0} 词</span>
+                <span>${formatDate(a.created)}</span>
+                <button class="vs-del" onclick="event.stopPropagation();deleteArticle(${a.id})" title="删除">&times;</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 加载单篇文章
+async function loadArticle(id) {
+    try {
+        const res = await fetch(`/api/articles/${id}`);
+        const article = await res.json();
+        vocabState.currentArticle = article;
+        renderArticleContent(article);
+        renderArticleList();  // 刷新列表高亮
+    } catch(e) {
+        console.warn('[vocab] 文章加载失败:', e);
+    }
+}
+
+// 删除文章
+async function deleteArticle(id) {
+    if (!confirm('确定删除这篇文章？关联的词汇记录也会被清理。')) return;
+    try {
+        await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+        // 如果删除的是当前文章，清空阅读区
+        if (vocabState.currentArticle && vocabState.currentArticle.id === id) {
+            vocabState.currentArticle = null;
+            renderEmptyReader();
+        }
+        await loadArticles();
+        await loadVocabStats();
+    } catch(e) { console.warn('[vocab] 删除失败:', e); }
+}
+
+// 渲染文章阅读区（空状态 → 显示输入框）
+function renderEmptyReader() {
+    const reader = document.getElementById('vocabReader');
+    if (!reader) return;
+    reader.innerHTML = `
+        <div class="vocab-input">
+            <textarea id="newArticleText" placeholder="粘贴英文文章到这里..."></textarea>
+            <div class="vi-actions">
+                <button class="vb" onclick="analyzeArticle()">分析文章</button>
+            </div>
+        </div>
+    `;
+}
+
+// 渲染文章内容（分词 + 着色）
+function renderArticleContent(article) {
+    const reader = document.getElementById('vocabReader');
+    if (!reader) return;
+
+    // 构建单词状态查找表
+    const wordMap = {};
+    if (article.words) {
+        for (const w of article.words) {
+            wordMap[w.word] = w.status;
+        }
+    }
+
+    // 分词：将文章拆分为单词和非单词片段
+    const tokens = [];
+    const regex = /[a-zA-Z]+(?:'[a-zA-Z]+)*/g;
+    let lastIdx = 0;
+    let match;
+    while ((match = regex.exec(article.content)) !== null) {
+        // 非单词部分（标点、空格、换行等）
+        if (match.index > lastIdx) {
+            tokens.push({ type: 'sep', text: article.content.slice(lastIdx, match.index) });
+        }
+        tokens.push({ type: 'word', text: match[0], key: match[0].toLowerCase() });
+        lastIdx = match.index + match[0].length;
+    }
+    // 尾部非单词部分
+    if (lastIdx < article.content.length) {
+        tokens.push({ type: 'sep', text: article.content.slice(lastIdx) });
+    }
+
+    // 构建渲染 HTML
+    let html = `<div class="vocab-article-title">${escHtml(article.title)}</div>`;
+    html += '<div class="vocab-text">';
+    for (const t of tokens) {
+        if (t.type === 'sep') {
+            html += `<span class="vw-sep">${escHtml(t.text)}</span>`;
+        } else {
+            const status = wordMap[t.key] || 'unknown';
+            html += `<span class="vw ${status}" data-word="${escHtml(t.key)}" data-original="${escHtml(t.text)}" onclick="onWordClick(this, event)">${escHtml(t.text)}</span>`;
+        }
+    }
+    html += '</div>';
+
+    reader.innerHTML = html;
+}
+
+// 渲染输入区（新文章）
+function showInputArea() {
+    const reader = document.getElementById('vocabReader');
+    if (!reader) return;
+    reader.innerHTML = `
+        <div class="vocab-input">
+            <textarea id="newArticleText" placeholder="粘贴英文文章到这里..."></textarea>
+            <div class="vi-actions">
+                <button class="vb" onclick="analyzeArticle()">分析文章</button>
+            </div>
+        </div>
+    `;
+    document.getElementById('newArticleText').focus();
+}
+
+// 分析新文章（提交到后端保存，然后加载显示）
+async function analyzeArticle() {
+    const textarea = document.getElementById('newArticleText');
+    if (!textarea) return;
+    const content = textarea.value.trim();
+    if (!content) return;
+
+    try {
+        const res = await fetch('/api/articles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            // 保存成功，加载并显示
+            await loadArticles();
+            await loadVocabStats();
+            await loadArticle(data.id);
+        } else {
+            alert('保存失败: ' + (data.error || '未知错误'));
+        }
+    } catch(e) {
+        console.warn('[vocab] 分析失败:', e);
+        alert('网络错误');
+    }
+}
+
+// 单词点击：切换状态
+// mastered → familiar → mastered（循环）
+// unknown → familiar → mastered（逐步掌握）
+async function onWordClick(el, event) {
+    const word = el.dataset.word;
+    const currentStatus = el.dataset.status || el.classList.contains('mastered') ? 'mastered'
+        : el.classList.contains('familiar') ? 'familiar' : 'unknown';
+
+    // 状态切换逻辑
+    let nextStatus;
+    if (currentStatus === 'mastered') {
+        nextStatus = 'familiar';
+    } else if (currentStatus === 'familiar') {
+        nextStatus = 'mastered';
+    } else { // unknown
+        nextStatus = 'familiar';
+    }
+
+    // 更新本地显示（乐观更新）
+    el.classList.remove('mastered', 'familiar', 'unknown');
+    el.classList.add(nextStatus);
+    el.dataset.status = nextStatus;
+
+    // 发送到后端持久化
+    try {
+        await fetch('/api/words', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word, status: nextStatus })
+        });
+        // 刷新统计
+        loadVocabStats();
+    } catch(e) { console.warn('[vocab] 状态更新失败:', e); }
+
+    // 显示单词详情弹窗
+    showWordPopup(el, word, nextStatus);
+}
+
+// ========== 单词详情弹窗 ==========
+const wordPopup = document.getElementById('wordPopup');
+let wordPopupTimer = null;
+
+// 显示弹窗
+async function showWordPopup(anchor, word, currentStatus) {
+    clearTimeout(wordPopupTimer);
+    const wpWord = document.getElementById('wpWord');
+    const wpStatus = document.getElementById('wpStatus');
+    const wpArticles = document.getElementById('wpArticles');
+
+    wpWord.textContent = word;
+
+    // 状态按钮
+    const statuses = ['mastered', 'familiar', 'unknown'];
+    const labels = { mastered: '+ 已掌握', familiar: '~ 不熟练', unknown: '? 陌生' };
+    wpStatus.innerHTML = statuses.map(s =>
+        `<button class="wb ${s===currentStatus?'active':''}" onclick="setWordStatus('${word}','${s}')">${labels[s]}</button>`
+    ).join('');
+
+    // 加载单词出现过的文章
+    try {
+        const res = await fetch(`/api/words/${encodeURIComponent(word)}/articles`);
+        const data = await res.json();
+        if (data.articles && data.articles.length > 0) {
+            wpArticles.innerHTML = '<div style="color:var(--tx2);margin-bottom:4px">出现过的文章:</div>' +
+                data.articles.map(a =>
+                    `<div onclick="loadArticle(${a.id});closeWordPopup()">${escHtml(a.title)} (x${a.count})</div>`
+                ).join('');
+            wpArticles.style.display = 'block';
+        } else {
+            wpArticles.style.display = 'none';
+        }
+    } catch(e) { wpArticles.style.display = 'none'; }
+
+    // 定位弹窗（锚点附近）
+    const rect = anchor.getBoundingClientRect();
+    wordPopup.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+    wordPopup.style.top = (rect.bottom + 4) + 'px';
+    wordPopup.classList.add('show');
+}
+
+// 关闭弹窗
+function closeWordPopup() {
+    wordPopup.classList.remove('show');
+}
+
+// 弹窗中切换单词状态
+async function setWordStatus(word, status) {
+    try {
+        await fetch('/api/words', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word, status })
+        });
+
+        // 更新页面上所有同名单词的样式
+        document.querySelectorAll(`.vw[data-word="${word}"]`).forEach(el => {
+            el.classList.remove('mastered', 'familiar', 'unknown');
+            el.classList.add(status);
+            el.dataset.status = status;
+        });
+
+        // 更新弹窗内按钮状态
+        document.querySelectorAll('#wpStatus .wb').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent.includes(
+                status === 'mastered' ? '已掌握' : status === 'familiar' ? '不熟练' : '陌生'
+            ));
+        });
+
+        loadVocabStats();
+    } catch(e) { console.warn('[vocab] 状态设置失败:', e); }
+}
+
+// 点击弹窗外关闭
+document.addEventListener('click', (e) => {
+    if (!wordPopup.contains(e.target) && !e.target.classList.contains('vw')) {
+        wordPopupTimer = setTimeout(closeWordPopup, 200);
+    }
+});
+
+// ========== 工具函数 ==========
+// HTML 转义
+function escHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// 日期格式化（ISO → 短格式）
+function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${m}-${day}`;
+}
 
 // ========== 方向检测 ==========
-// 宽度<769px视为竖屏（手机/平板竖持），否则横屏
 function isMobile(){return window.innerWidth<769}
 
 // ========== 布局切换 ==========
-// 根据屏幕方向显示对应容器，隐藏另一个，并计算正方形尺寸
 function layout(){
+    const screen = getActiveScreen();
+
     if(isMobile()){
         scroller.style.display='flex';
         landscape.style.display='none';
@@ -456,60 +1069,80 @@ function layout(){
     }
 }
 
-// ========== 竖屏正方形尺寸计算 ==========
-// 正方形边长 = min(视口宽, 视口高) - 16px内边距
-// 水平居中显示，通过spacer确保可滚动
+// ========== 竖屏布局计算 ==========
+// 有应用时：主显示区宽度=视口宽，高度自适应内容（最小360px）
+// 无应用时：保持 1:1 正方形
 function fitPortrait(){
     const vw=window.innerWidth;
     const vh=window.innerHeight;
-    const pad=16;
-    const s=Math.min(vw,vh)-pad;
-    if(s<=0)return;
-    screenP.style.width=s+'px';
-    screenP.style.height=s+'px';
-    screenP.style.margin='8px auto';        // 水平居中
-    screenP.style.position='relative';
-    screenP.style.top='';screenP.style.left='';
-    // 确保总内容高度 > 视口高度，使滚动成为可能
-    // 公式：状态栏(32) + 正方形 + 间距(16) + 面板高度 应大于视口高度
-    const totalNeeded=32+s+16+panelP.getBoundingClientRect().height;
-    spacer.style.height=Math.max(0,vh-totalNeeded+100)+'px';
+    const screen = screenP;
+
+    if (currentApp) {
+        // 有应用：宽度撑满，高度自适应（最小360px）
+        screen.style.width = (vw - 16) + 'px';
+        screen.style.height = Math.max(360, vh - 100) + 'px';
+        screen.style.margin = '8px auto';
+        screen.style.position = 'relative';
+        screen.style.top = '';
+        screen.style.left = '';
+        // 调整 spacer 确保能滚动
+        spacer.style.height = Math.max(0, vh - panelP.getBoundingClientRect().height - screen.offsetHeight + 100) + 'px';
+    } else {
+        // 无应用：1:1 正方形
+        const s = Math.min(vw, vh) - 16;
+        if (s <= 0) return;
+        screen.style.width = s + 'px';
+        screen.style.height = s + 'px';
+        screen.style.margin = '8px auto';
+        screen.style.position = 'relative';
+        screen.style.top = '';
+        screen.style.left = '';
+        const totalNeeded = 32 + s + 16 + panelP.getBoundingClientRect().height;
+        spacer.style.height = Math.max(0, vh - totalNeeded + 100) + 'px';
+    }
 }
 
-// ========== 横屏正方形尺寸计算 ==========
-// 正方形边长 = min(视口宽, 视口高) - 16px
-// 紧贴左栏右侧（left:8px），在右栏内垂直居中
+// ========== 横屏布局计算 ==========
+// 有应用时：主显示区撑满右栏
+// 无应用时：1:1 正方形居中
 function fitLandscape(){
     const vw=window.innerWidth;
     const vh=window.innerHeight;
-    const pad=16;
-    const s=Math.min(vw,vh)-pad;
-    if(s<=0)return;
-    const aw=lsRight.clientWidth;
-    const ah=lsRight.clientHeight;
-    screenL.style.width=s+'px';
-    screenL.style.height=s+'px';
-    screenL.style.position='absolute';
-    screenL.style.top=Math.max(0,Math.floor((ah-s)/2))+'px';  // 垂直居中
-    screenL.style.left='8px';                                  // 紧贴左栏
-    screenL.style.margin='0';
+    const screen = screenL;
+
+    if (currentApp) {
+        // 有应用：撑满右栏（减去 padding）
+        const w = lsRight.clientWidth - 16;
+        const h = lsRight.clientHeight - 16;
+        screen.style.width = w + 'px';
+        screen.style.height = h + 'px';
+        screen.style.position = 'absolute';
+        screen.style.top = '8px';
+        screen.style.left = '8px';
+        screen.style.margin = '0';
+    } else {
+        // 无应用：1:1 居中
+        const s = Math.min(vw, vh) - 16;
+        if (s <= 0) return;
+        screen.style.width = s + 'px';
+        screen.style.height = s + 'px';
+        screen.style.position = 'absolute';
+        screen.style.top = Math.max(0, Math.floor((lsRight.clientHeight - s) / 2)) + 'px';
+        screen.style.left = '8px';
+        screen.style.margin = '0';
+    }
 }
 
 // ========== 竖屏滚动收起面板 ==========
-// 当用户向上滚动超过面板高度时，面板自动折叠（高度归零）
-// 回滚到面板高度以下时，面板恢复展开
-let panelCollapsed=false;   // 面板是否已收起
-let savedPanelH=0;          // 缓存面板展开时的实际高度
+let panelCollapsed=false;
+let savedPanelH=0;
 
 scroller.addEventListener('scroll',()=>{
     if(!isMobile())return;
-    // 首次滚动时缓存面板高度
     if(!savedPanelH) savedPanelH=panelP.scrollHeight||panelP.getBoundingClientRect().height;
-    // 滚动超过面板高度 → 收起
     if(scroller.scrollTop>savedPanelH && !panelCollapsed){
         panelCollapsed=true;
         panelP.classList.add('collapsed');
-    // 回滚到面板高度以内 → 展开
     }else if(scroller.scrollTop<=savedPanelH && panelCollapsed){
         panelCollapsed=false;
         panelP.classList.remove('collapsed');
@@ -519,12 +1152,10 @@ scroller.addEventListener('scroll',()=>{
 // ========== 初始化 ==========
 layout();
 window.addEventListener('resize',()=>{
-    // 窗口尺寸变化时重置收起状态并重新布局
     panelCollapsed=false;savedPanelH=0;
     panelP.classList.remove('collapsed');
     layout();
 });
-// 监听document尺寸变化（如浏览器DevTools resize）
 new ResizeObserver(layout).observe(document.documentElement);
 </script>
 </body>
