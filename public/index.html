@@ -375,28 +375,27 @@
         /* 每个单词都是行内块，可点击 */
         .vw{
             display:inline-block;
-            padding:1px 4px;margin:1px 1px;
-            border-radius:4px;
+            padding:0 2px;margin:0;
+            border:1px solid transparent;    /* 透明边框占位，避免状态切换时布局跳动 */
+            border-radius:5px;
             cursor:pointer;
-            transition:all .12s;
-            user-select:none;
+            transition:background .15s, border-color .15s;
         }
         .vw:hover{opacity:.8}
         /* 已掌握（mastered）：默认背景，无特殊样式 */
         .vw.mastered{
             background:transparent;
+            border-color:transparent;
         }
         /* 不熟练（familiar）：黄色圆角背景 */
         .vw.familiar{
             background:var(--vocab-familiar);
-            border:1px solid var(--vocab-familiar-border);
-            border-radius:5px;
+            border-color:var(--vocab-familiar-border);
         }
         /* 陌生（unknown）：浅红色圆角背景 */
         .vw.unknown{
             background:var(--vocab-unknown);
-            border:1px solid var(--vocab-unknown-border);
-            border-radius:5px;
+            border-color:var(--vocab-unknown-border);
         }
         /* 非单词字符（标点、空格、换行等） */
     </style>
@@ -789,27 +788,30 @@ function renderArticleContent(article) {
         }
     }
 
-    // 分词：将文章拆分为单词和非单词片段
-    // 支持撇号缩写（I'm, we'd）和连字符复合词（good-looking）
-    // 预处理：统一全角/弯引号撇号为半角，避免 don\u2019t 等被错误断词
+    // 分词：正则匹配字母数字（含撇号、连字符），标点自动忽略
+    // 预处理：统一全角/弯引号标点为半角（常见于从 Word/PDF 复制的文本）
     const normalized = article.content
         .replace(/[\u2019\u2018\u201A\uFF07]/g, "'")
         .replace(/[\u2013\u2014\u2010\uFF0D]/g, "-");
+    const WORD_RE = /[a-zA-Z0-9]+(?:['\-][a-zA-Z0-9]+)*/g;
+    const words = normalized.match(WORD_RE) || [];
+    // 记录每个匹配的索引位置，用于渲染时还原原始文本格式
+    let matchPos = 0;
     const tokens = [];
-    const regex = /[a-zA-Z]+(?:['\-][a-zA-Z]+)*/g;
-    let lastIdx = 0;
-    let match;
-    while ((match = regex.exec(normalized)) !== null) {
-        // 非单词部分（标点、空格、换行等）—— 用原始文本保持显示一致
-        if (match.index > lastIdx) {
-            tokens.push({ type: 'sep', text: normalized.slice(lastIdx, match.index) });
+    for (const w of words) {
+        // 找到该词在原文中的实际位置
+        const idx = normalized.indexOf(w, matchPos);
+        if (idx === -1) break;
+        // 词之前的文本作为分隔符
+        if (idx > matchPos) {
+            tokens.push({ type: 'sep', text: normalized.slice(matchPos, idx) });
         }
-        tokens.push({ type: 'word', text: match[0], key: match[0].toLowerCase() });
-        lastIdx = match.index + match[0].length;
+        tokens.push({ type: 'word', text: w, key: w.toLowerCase() });
+        matchPos = idx + w.length;
     }
-    // 尾部非单词部分
-    if (lastIdx < normalized.length) {
-        tokens.push({ type: 'sep', text: normalized.slice(lastIdx) });
+    // 尾部剩余文本
+    if (matchPos < normalized.length) {
+        tokens.push({ type: 'sep', text: normalized.slice(matchPos) });
     }
 
     // 构建渲染 HTML
@@ -888,9 +890,11 @@ async function onWordClick(el, event) {
         nextStatus = 'mastered';
     }
 
-    // 更新本地显示（乐观更新）
-    el.classList.remove('mastered', 'familiar', 'unknown');
-    el.classList.add(nextStatus);
+    // 全局更新：文章中所有同名单词一起变色
+    document.querySelectorAll(`.vw[data-word="${CSS.escape(word)}"]`).forEach(span => {
+        span.classList.remove('mastered', 'familiar', 'unknown');
+        span.classList.add(nextStatus);
+    });
 
     // 发送到后端持久化
     try {

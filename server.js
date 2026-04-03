@@ -243,15 +243,14 @@ wss.on('connection', (ws) => {
 // ---------- 分词工具 ----------
 // 将英文文章拆分为单词数组（保留原始大小写，但去重时统一用小写比较）
 function tokenize(text) {
-  // 预处理：统一全角/弯引号撇号为半角，避免 don't 等被错误断词
+  // 预处理：统一全角/弯引号标点为半角（常见于从 Word/PDF 复制的文本）
   const normalized = text
-    .replace(/[\u2019\u2018\u201A\uFF07]/g, "'")   // 右单引号、左单引号、单低引号、全角撇号 → 半角
-    .replace(/[\u2013\u2014\u2010\uFF0D]/g, "-");  // en-dash、em-dash、hyphen、全角连字符 → 半角连字符
-
-  // 匹配英文单词，支持：
-  // - 撇号缩写：I'm, we'd, don't, it's
-  // - 连字符复合词：good-looking, state-of-the-art, self-driving
-  return normalized.match(/[a-zA-Z]+(?:['\-][a-zA-Z]+)*/g) || [];
+    .replace(/[\u2019\u2018\u201A\uFF07]/g, "'")   // 弯引号撇号 → 半角
+    .replace(/[\u2013\u2014\u2010\uFF0D]/g, "-");  // 弯引号连字符 → 半角
+  // 正则匹配：字母和数字组成的词，支持撇号和连字符
+  // 如 P2P、don't、good-looking、IPv4 都作为一个词，标点（逗号、句号等）自动忽略
+  const regex = /[a-zA-Z0-9]+(?:['\-][a-zA-Z0-9]+)*/g;
+  return normalized.match(regex) || [];
 }
 
 // ---------- 文章相关 API ----------
