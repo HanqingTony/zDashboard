@@ -23,10 +23,11 @@ if (existsSync(configPath)) {
 }
 
 const PORT = process.env.PORT || fileConfig.port || 3100;
+const HOST = process.env.HOST || fileConfig.host || '127.0.0.1';
 const AUDIO_DIR = resolve(__dirname, process.env.AUDIO_DIR || fileConfig.audioDir || 'audio');
 const DB_PATH = resolve(__dirname, process.env.DB_PATH || fileConfig.dbPath || 'zdb.db');
 
-console.log(`[config] 端口: ${PORT}`);
+console.log(`[config] 监听: ${HOST}:${PORT}`);
 console.log(`[config] 音频: ${AUDIO_DIR}`);
 console.log(`[config] 数据库: ${DB_PATH}`);
 
@@ -401,8 +402,8 @@ app.get('/api/vocab/stats', (req, res) => {
 });
 
 // ========== 启动 ==========
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[zdashboard] http://0.0.0.0:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[zdashboard] http://${HOST}:${PORT}`);
   console.log(`[zdashboard] 音频目录: ${AUDIO_DIR}`);
   console.log(`[zdashboard] POST /api/play {"path":"..."} 播放音频`);
   console.log(`[zdashboard] 英语学习: /api/articles, /api/words, /api/vocab/stats`);
