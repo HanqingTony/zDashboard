@@ -1,0 +1,23 @@
+services:
+  zdashboard:
+    build: .
+    container_name: zdashboard
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    environment:
+      - PORT=3100
+      - HOST=0.0.0.0
+      - DB_PATH=/data/zdb.db
+      - AUDIO_DIR=/data/audio
+    volumes:
+      # Persistent data: database + audio files
+      - zdashboard-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  zdashboard-data:
