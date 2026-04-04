@@ -8,11 +8,13 @@ services:
     environment:
       - PORT=3100
       - HOST=0.0.0.0
-      - DB_PATH=/data/zdb.db
-      - AUDIO_DIR=/data/audio
+      - DB_PATH=/db/zdb.db
+      - AUDIO_DIR=/audio
     volumes:
-      # Persistent data: database + audio files
-      - zdashboard-data:/data
+      # Database: authoritative location
+      - /home/tony/zdb.db:/db/zdb.db
+      # Audio files (zDashboard read/write)
+      - zdashboard-audio:/audio
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/"]
       interval: 30s
@@ -20,4 +22,4 @@ services:
       retries: 3
 
 volumes:
-  zdashboard-data:
+  zdashboard-audio:
