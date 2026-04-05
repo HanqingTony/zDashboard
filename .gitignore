@@ -7,15 +7,6 @@ audio/*.m4a
 audio/*.webm
 audio/*.aac
 *.log
-# zdb.db contains sensitive data (SSH keys, passwords) - never commit real db
-# Use zdb.example.db (schema-only) as template
 zdb.db
 zdb.db-shm
 zdb.db-wal
-
-# 用户配置文件（含真实数据库路径等敏感信息）
-config.json
-
-# 残留文件保护
-/index.html
-/speak.sh
