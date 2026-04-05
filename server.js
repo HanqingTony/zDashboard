@@ -18,6 +18,9 @@ if (!existsSync(AUDIO_DIR)) {
   console.log(`[init] 创建音频目录: ${AUDIO_DIR}`);
 }
 
+// Static files
+app.use(express.static('public'));
+
 // Routes
 app.use(audioRouter);
 app.use(articlesRouter);
