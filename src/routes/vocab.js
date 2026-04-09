@@ -17,7 +17,7 @@ router.put('/api/words', (req, res) => {
       status = excluded.status,
       last_seen = excluded.last_seen,
       click_count = click_count + 1
-  `).run(word, status, now);
+  `).run(word, status, now, now);
   console.log(`[vocab] "${word}" → ${status}`);
   res.json({ ok: true, word, status });
 });

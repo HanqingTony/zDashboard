@@ -1,6 +1,8 @@
 services:
   zdashboard:
-    build: .
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: zdashboard
     ports:
       - "3100:3100"
@@ -10,5 +12,5 @@ services:
       - DB_PATH=/db/zdb.db
       - AUDIO_DIR=/audio
     volumes:
-      - ./zdb.db:/db/zdb.db
-      - ./audio:/audio
+      - ../data/zdb.db:/db/zdb.db
+      - ../data/audio:/audio

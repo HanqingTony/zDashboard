@@ -1,0 +1,393 @@
+/* ========== 设计令牌 ========== */
+        :root{
+            /* 背景色阶 */
+            --bg:#0c0e14;      /* 主背景（最深） */
+            --bg2:#13151e;     /* 次背景 */
+            --bg3:#1a1d2a;     /* 卡片/元素背景 */
+            /* 边框 */
+            --bdr:#252839;     /* 通用边框色 */
+            /* 文字色阶 */
+            --tx:#dde0ec;      /* 主文字 */
+            --tx2:#7f849a;     /* 次文字 */
+            --tx3:#4a4f68;     /* 弱文字/标签 */
+            /* 强调色 */
+            --ac:#6c5ce7;      /* 主色：紫色 */
+            --ac2:#a29bfe;     /* 主色浅 */
+            /* 语义色 */
+            --grn:#00d2a8;     /* 成功/在线 */
+            --org:#f0b429;     /* 警告/规划中 */
+            --red:#ff6b6b;     /* 错误 */
+            --blu:#5b9cf6;     /* 信息/数据库 */
+            /* 布局尺寸 */
+            --panel-w:240px;   /* 侧栏宽度 */
+            --bar-h:32px;      /* 顶部状态栏高度 */
+            /* 词汇状态色 */
+            --vocab-familiar:rgba(240,180,41,.18);       /* 不熟练：黄色半透明背景 */
+            --vocab-familiar-border:rgba(240,180,41,.35);
+            --vocab-unknown:rgba(255,107,107,.15);       /* 陌生：浅红色半透明背景 */
+            --vocab-unknown-border:rgba(255,107,107,.3);
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{height:100%;overflow:hidden}
+        body{
+            font-family:-apple-system,'SF Pro Display','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+            background:var(--bg);color:var(--tx);
+        }
+
+        /* ========== 竖屏滚动容器 ========== */
+        /* 竖屏模式下唯一的外层容器，fixed全屏覆盖，内部可滚动 */
+        /* 文档流顺序：dash-bar(sticky) → panel-content → main-screen → spacer */
+        #scroller{
+            position:fixed;inset:0;
+            overflow-y:auto;overflow-x:hidden;
+            display:none;              /* 默认隐藏，JS根据方向切换 */
+            flex-direction:column;
+            z-index:1;
+        }
+        #scroller::-webkit-scrollbar{width:4px}
+        #scroller::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* ========== 横屏容器 ========== */
+        /* 横屏模式下唯一的外层容器，flex双栏布局，不滚动 */
+        #landscape{
+            position:fixed;inset:0;
+            display:none;              /* 默认隐藏，JS根据方向切换 */
+            z-index:1;
+        }
+
+        /* ========== 顶部状态栏 ========== */
+        /* 显示logo、各服务状态指标、时钟、在线状态灯 */
+        .dash-bar{
+            display:flex;align-items:center;gap:10px;
+            padding:0 12px;height:var(--bar-h);
+            background:var(--bg2);border-bottom:1px solid var(--bdr);
+            flex-shrink:0;font-size:11px;color:var(--tx2);
+            cursor:default;user-select:none;
+        }
+        /* 竖屏时吸顶：面板滚上去后状态栏仍固定在顶部 */
+        .dash-bar.sticky{
+            position:sticky;top:0;z-index:20;
+        }
+
+        /* logo区域 */
+        .dash-bar .logo{
+            font-size:12px;font-weight:700;letter-spacing:-.3px;
+            display:flex;align-items:center;gap:5px;flex-shrink:0;
+        }
+        /* logo中的"Z"图标方块 */
+        .logo .z{
+            width:18px;height:18px;background:var(--ac);border-radius:4px;
+            display:inline-flex;align-items:center;justify-content:center;
+            font-size:9px;color:#fff;
+        }
+        .dash-bar .spacer{flex:1}
+
+        /* 状态指标（如 zdb 7、MinIO 2.4G） */
+        .si{display:flex;align-items:center;gap:3px;white-space:nowrap}
+        .si .d{width:5px;height:5px;border-radius:50%;flex-shrink:0}   /* 状态圆点 */
+        .si .v{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums} /* 数值 */
+
+        /* 时钟 */
+        .clk{font-variant-numeric:tabular-nums;color:var(--tx3)}
+
+        /* 在线状态灯（绿色发光小圆点） */
+        .online-dot{
+            width:5px;height:5px;border-radius:50%;
+            background:var(--grn);box-shadow:0 0 4px var(--grn);flex-shrink:0;
+        }
+
+        /* ========== 面板内容区（Projects + Tools列表） ========== */
+        .panel-content{
+            flex-shrink:0;
+            transition:max-height .3s ease,opacity .2s ease;  /* 收起动画 */
+            overflow:hidden;
+        }
+        /* 收起状态：高度归零 + 透明 */
+        .panel-content.collapsed{
+            max-height:0!important;opacity:0;
+        }
+
+        /* 分区标题（如 "PROJECTS"、"TOOLS"） */
+        .sec-title{
+            padding:8px 12px 4px;font-size:9px;font-weight:600;
+            text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);
+        }
+        /* 分区分隔线 */
+        .sec-div{height:1px;background:var(--bdr);margin:3px 12px}
+
+        /* 项目列表行 */
+        .pr{
+            display:flex;align-items:center;gap:7px;
+            padding:5px 12px;cursor:pointer;transition:background .12s;
+        }
+        .pr:hover{background:var(--bg2)}
+        /* 项目图标（22px方形，后续可放项目图片） */
+        .pr-i{
+            width:22px;height:22px;border-radius:4px;background:var(--bg3);
+            flex-shrink:0;display:flex;align-items:center;justify-content:center;
+            font-size:9px;color:var(--tx3);overflow:hidden;
+        }
+        .pr-i img{width:100%;height:100%;object-fit:cover}
+        /* 项目名称 */
+        .pr-n{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        /* 项目状态圆点 */
+        .pr-s{margin-left:auto;width:5px;height:5px;border-radius:50%;flex-shrink:0}
+        .pr-s.a{background:var(--grn)}   /* 进行中：绿色 */
+        .pr-s.m{background:var(--blu)}   /* 维护中：蓝色 */
+        .pr-s.p{background:var(--org)}   /* 规划中：橙色 */
+
+        /* 工具列表行 */
+        .tl{
+            display:flex;align-items:center;gap:7px;
+            padding:5px 12px;cursor:pointer;transition:background .12s;
+            font-size:11px;color:var(--tx2);
+        }
+        .tl:hover{background:var(--bg2);color:var(--tx)}
+        /* 工具激活状态：左侧紫色边框 + 白色文字 */
+        .tl.active{
+            background:rgba(108,92,231,.1);color:var(--tx);
+            border-left:2px solid var(--ac);padding-left:10px;
+        }
+        /* 工具角标（如日记的"3篇"、提醒的"2条"） */
+        .tl .bd{
+            margin-left:auto;font-size:9px;
+            background:rgba(0,210,168,.1);color:var(--grn);
+            padding:1px 5px;border-radius:6px;
+        }
+
+        /* ========== 主显示区 ========== */
+        /* 不再强制 1:1，改为自适应容器，由各模块自行布局 */
+        .main-screen{
+            display:flex;flex-direction:column;
+            overflow:hidden;flex-shrink:0;
+            background:var(--bg);border-radius:10px;
+            border:1px solid rgba(108,92,231,.35);
+            box-shadow:
+                0 0 0 1px rgba(108,92,231,.08),
+                0 0 20px rgba(108,92,231,.06),
+                inset 0 0 30px rgba(0,0,0,.4);
+        }
+        /* 占位符文字（无应用运行时显示） */
+        .ms-ph{color:var(--tx3);text-align:center;font-size:11px}
+        .ms-ph .b{font-size:28px;opacity:.2;display:block;margin-bottom:4px}
+
+        /* ========== 横屏专用样式 ========== */
+        /* 左栏：dash-bar + panel-content 纵向排列 */
+        .ls-left{
+            width:var(--panel-w);height:100%;
+            display:flex;flex-direction:column;
+            background:var(--bg);border-right:1px solid var(--bdr);
+            flex-shrink:0;
+        }
+        /* 横屏下面板内容可滚动，不受collapsed限制 */
+        .ls-left .panel-content{
+            flex:1;overflow-y:auto;
+            max-height:none!important;opacity:1!important;
+        }
+        .ls-left .panel-content::-webkit-scrollbar{width:3px}
+        .ls-left .panel-content::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* 右栏：主显示区的容器 */
+        .ls-right{
+            flex:1;position:relative;min-width:0;min-height:0;
+            background:var(--bg2);
+            padding:8px;    /* 给主显示区一点呼吸空间 */
+        }
+
+        /* ========== 音频播放器 ========== */
+        /* 固定在底部，半透明背景，显示当前播放状态 */
+        .audio-bar{
+            position:fixed;bottom:0;left:0;right:0;
+            height:36px;z-index:100;
+            display:flex;align-items:center;gap:8px;
+            padding:0 12px;
+            background:rgba(19,21,30,.92);
+            backdrop-filter:blur(8px);
+            border-top:1px solid var(--bdr);
+            font-size:11px;color:var(--tx2);
+            transform:translateY(100%);    /* 默认隐藏 */
+            transition:transform .25s ease;
+        }
+        .audio-bar.visible{transform:translateY(0)}  /* 有音频时显示 */
+        /* 播放状态指示灯 */
+        .audio-bar .ab-dot{
+            width:6px;height:6px;border-radius:50%;flex-shrink:0;
+            background:var(--grn);
+        }
+        .audio-bar .ab-dot.playing{animation:pulse 1.2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+        /* 当前文件名 */
+        .audio-bar .ab-name{
+            flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            color:var(--tx);font-weight:500;
+        }
+        /* 队列计数角标 */
+        .audio-bar .ab-badge{
+            font-size:9px;background:rgba(108,92,231,.15);color:var(--ac2);
+            padding:1px 6px;border-radius:6px;
+        }
+        /* WS连接状态 */
+        .audio-bar .ab-ws{
+            font-size:9px;color:var(--tx3);flex-shrink:0;
+        }
+
+        /* ========== 英语学习模块 ========== */
+
+        /* 模块容器：填满主显示区 */
+        .vocab-app{
+            display:flex;flex-direction:column;
+            width:100%;height:100%;
+            overflow:hidden;
+        }
+
+        /* 模块顶栏：标题 + 统计 + 操作按钮 */
+        .vocab-header{
+            display:flex;align-items:center;gap:8px;
+            padding:8px 12px;
+            background:var(--bg2);border-bottom:1px solid var(--bdr);
+            flex-shrink:0;
+        }
+        .vocab-header .vh-title{
+            font-size:13px;font-weight:600;flex-shrink:0;
+        }
+        .vocab-header .vh-spacer{flex:1}
+        .vocab-header .vh-stats{
+            font-size:10px;color:var(--tx3);
+            display:flex;gap:8px;
+        }
+        .vocab-header .vh-stats span{white-space:nowrap}
+        /* 统计数字高亮 */
+        .vocab-header .vh-stats .num{color:var(--tx);font-weight:600}
+
+        /* 通用小按钮 */
+        .vb{
+            padding:4px 10px;border-radius:6px;font-size:10px;font-weight:500;
+            border:1px solid var(--bdr);background:var(--bg3);color:var(--tx2);
+            cursor:pointer;transition:all .15s;white-space:nowrap;
+        }
+        .vb:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
+        .vb.danger:hover{background:var(--red);border-color:var(--red);color:#fff}
+
+        /* 模块主体区域：文章列表 + 阅读区 */
+        .vocab-body{
+            display:flex;flex:1;overflow:hidden;
+        }
+
+        /* ----- 文章列表侧栏 ----- */
+        .vocab-sidebar{
+            width:180px;flex-shrink:0;
+            border-right:1px solid var(--bdr);
+            display:flex;flex-direction:column;
+            background:var(--bg);
+        }
+        .vocab-sidebar .vs-header{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:8px 10px;font-size:10px;font-weight:600;
+            color:var(--tx3);text-transform:uppercase;letter-spacing:.6px;
+            border-bottom:1px solid var(--bdr);
+        }
+        /* 文章列表（可滚动） */
+        .vocab-sidebar .vs-list{
+            flex:1;overflow-y:auto;
+        }
+        .vocab-sidebar .vs-list::-webkit-scrollbar{width:3px}
+        .vocab-sidebar .vs-list::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* 单篇文章行 */
+        .vs-item{
+            padding:8px 10px;cursor:pointer;
+            border-bottom:1px solid var(--bdr);
+            transition:background .12s;
+        }
+        .vs-item:hover{background:var(--bg2)}
+        .vs-item.active{background:rgba(108,92,231,.08);border-left:2px solid var(--ac)}
+        .vs-item .vs-title{
+            font-size:11px;font-weight:500;color:var(--tx);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .vs-item .vs-meta{
+            font-size:9px;color:var(--tx3);margin-top:2px;
+            display:flex;justify-content:space-between;
+        }
+        /* 文章删除按钮 */
+        .vs-item .vs-del{
+            opacity:0;transition:opacity .15s;
+            background:none;border:none;color:var(--red);
+            cursor:pointer;font-size:11px;padding:0 2px;
+        }
+        .vs-item:hover .vs-del{opacity:1}
+
+        /* ----- 阅读区 ----- */
+        .vocab-reader{
+            flex:1;overflow-y:auto;padding:16px;
+        }
+        .vocab-reader::-webkit-scrollbar{width:4px}
+        .vocab-reader::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+
+        /* 空状态提示 */
+        .vocab-empty{
+            display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            height:100%;color:var(--tx3);text-align:center;
+        }
+        .vocab-empty .ve-icon{font-size:36px;opacity:.3;margin-bottom:8px}
+        .vocab-empty p{font-size:12px;line-height:1.6}
+
+        /* 输入区：文本框 + 分析按钮 */
+        .vocab-input{
+            margin-bottom:16px;
+        }
+        .vocab-input textarea{
+            width:100%;min-height:120px;max-height:200px;
+            padding:10px 12px;border-radius:8px;
+            background:var(--bg2);border:1px solid var(--bdr);
+            color:var(--tx);font-size:13px;line-height:1.6;
+            resize:vertical;outline:none;
+            font-family:inherit;
+        }
+        .vocab-input textarea:focus{border-color:var(--ac)}
+        .vocab-input textarea::placeholder{color:var(--tx3)}
+        .vocab-input .vi-actions{
+            display:flex;gap:8px;margin-top:8px;justify-content:flex-end;
+        }
+
+        /* 文章标题（阅读区顶部） */
+        .vocab-article-title{
+            font-size:15px;font-weight:600;margin-bottom:12px;
+            padding-bottom:8px;border-bottom:1px solid var(--bdr);
+            color:var(--tx);
+        }
+
+        /* 分词后的文章正文 */
+        .vocab-text{
+            font-size:14px;line-height:2;
+            color:var(--tx);
+        }
+
+        /* ----- 单词样式（三种状态） ----- */
+        /* 每个单词都是行内块，可点击 */
+        .vw{
+            display:inline-block;
+            padding:0 2px;margin:0;
+            border:1px solid transparent;    /* 透明边框占位，避免状态切换时布局跳动 */
+            border-radius:5px;
+            cursor:pointer;
+            transition:background .15s, border-color .15s;
+        }
+        .vw:hover{opacity:.8}
+        /* 已掌握（mastered）：默认背景，无特殊样式 */
+        .vw.mastered{
+            background:transparent;
+            border-color:transparent;
+        }
+        /* 不熟练（familiar）：黄色圆角背景 */
+        .vw.familiar{
+            background:var(--vocab-familiar);
+            border-color:var(--vocab-familiar-border);
+        }
+        /* 陌生（unknown）：浅红色圆角背景 */
+        .vw.unknown{
+            background:var(--vocab-unknown);
+            border-color:var(--vocab-unknown-border);
+        }
+        /* 非单词字符（标点、空格、换行等） */

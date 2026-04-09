@@ -37,7 +37,7 @@ router.post('/api/articles', (req, res) => {
     'INSERT OR IGNORE INTO zWordArticles (word, article_id, count) VALUES (?, ?, ?)'
   );
   const insertVocab = db.prepare(
-    'INSERT OR IGNORE INTO zVocab (word, status, first_seen, last_seen) VALUES (?, \'unknown\', ?, ?)'
+    "INSERT OR IGNORE INTO zVocab (word, status, first_seen, last_seen) VALUES (?, 'unknown', ?, ?)"
   );
 
   const insertMany = db.transaction((entries) => {
@@ -52,12 +52,16 @@ router.post('/api/articles', (req, res) => {
   res.json({ id: articleId, title: articleTitle, wordCount: Object.keys(wordCount).length });
 });
 
-// GET /api/articles/:id - get single article
+// GET /api/articles/:id - get single article with word statuses
 router.get('/api/articles/:id', (req, res) => {
   const article = db.prepare('SELECT * FROM zArticles WHERE id = ?').get(req.params.id);
   if (!article) return res.status(404).json({ error: '文章不存在' });
   const words = db.prepare(
-    'SELECT word, count FROM zWordArticles WHERE article_id = ? ORDER BY count DESC'
+    `SELECT wa.word, wa.count, COALESCE(v.status, 'unknown') AS status
+     FROM zWordArticles wa
+     LEFT JOIN zVocab v ON wa.word = v.word
+     WHERE wa.article_id = ?
+     ORDER BY wa.count DESC`
   ).all(req.params.id);
   res.json({ ...article, words });
 });
