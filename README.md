@@ -1,5 +1,7 @@
 # zDashboard
 
+> **当前版本：v0.1.0** · [路线图](docs/ROADMAP.md) · [v0.1.0 更新记录](docs/v0.1.0.md)
+
 个人多功能仪表盘，深色主题，横竖屏自适应，单文件 SPA。
 
 ## 功能模块
@@ -58,7 +60,20 @@
 
 ## 部署
 
-### Docker（推荐）
+### .run 便携部署（推荐）
+
+```bash
+# 构建
+bash deploy/build_run.sh
+
+# 运行
+export ZDB_PATH=/path/to/zdb.db
+export ZAUDIO_DIR=/path/to/audio
+export ZDASHBOARD_PORT=3100
+./zbuild/zdashboard.run
+```
+
+### Docker Compose
 
 ```bash
 cd deploy
@@ -78,7 +93,7 @@ node server.js
 zDashboard/
 ├── server.js           # 入口
 ├── src/
-│   ├── config.js       # 配置（环境变量 > 默认值）
+│   ├── config.js       # 配置（环境变量 > config.json > 默认值）
 │   ├── db.js           # SQLite 初始化
 │   └── routes/
 │       ├── audio.js    # 音频播放路由
@@ -86,13 +101,14 @@ zDashboard/
 │       └── vocab.js    # 词汇学习路由
 ├── public/
 │   └── index.html      # 单文件 SPA 前端
-├── data/               # 运行时数据（.gitignore）
-│   ├── zdb.db
-│   └── audio/
 ├── deploy/             # Docker 部署
 │   ├── Dockerfile
 │   ├── docker-compose.yml
-│   └── .dockerignore
+│   ├── build_run.sh    # .run 构建脚本
+│   └── pack/           # .run 打包素材
+├── docs/               # 项目文档
+│   ├── ROADMAP.md      # 路线图
+│   └── v0.1.0.md       # 版本更新记录
 ├── package.json
 └── .gitignore
 ```
