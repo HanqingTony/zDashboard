@@ -41,11 +41,9 @@ if docker ps -a --format '{{.Names}}' | grep -q '^zdashboard$'; then
     docker rm zdashboard >/dev/null
 fi
 
-# Load image if not present
-if ! docker images zdashboard --format '{{.Repository}}' | grep -q '^zdashboard$'; then
-    echo "Loading zdashboard image..."
-    docker load -i zdashboard.tar
-fi
+# Always load image (ensures .run's version is used, not stale cache)
+echo "Loading zdashboard image..."
+docker load -i zdashboard.tar
 
 # Start container
 echo "Starting zdashboard on port $ZDASHBOARD_PORT..."
