@@ -18,6 +18,8 @@ router.put('/api/words', (req, res) => {
       last_seen = excluded.last_seen,
       click_count = click_count + 1
   `).run(word, status, now, now);
+  // Force WAL checkpoint for single-file bind mount
+  db.pragma('wal_checkpoint(TRUNCATE)');
   console.log(`[vocab] "${word}" → ${status}`);
   res.json({ ok: true, word, status });
 });

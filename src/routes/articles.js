@@ -48,6 +48,10 @@ router.post('/api/articles', (req, res) => {
   });
   insertMany(Object.entries(wordCount));
 
+  // Force WAL checkpoint so data reaches the main .db file immediately
+  // Critical for single-file bind mounts where -wal/-shm are not on host
+  db.pragma('wal_checkpoint(TRUNCATE)');
+
   console.log(`[article] 保存 #${articleId} "${articleTitle}" (${Object.keys(wordCount).length} 单词)`);
   res.json({ id: articleId, title: articleTitle, wordCount: Object.keys(wordCount).length });
 });
@@ -71,6 +75,8 @@ router.delete('/api/articles/:id', (req, res) => {
   const article = db.prepare('SELECT * FROM zArticles WHERE id = ?').get(req.params.id);
   if (!article) return res.status(404).json({ error: '文章不存在' });
   db.prepare('DELETE FROM zArticles WHERE id = ?').run(req.params.id);
+  // Force WAL checkpoint after delete too
+  db.pragma('wal_checkpoint(TRUNCATE)');
   console.log(`[article] 已删除 #${article.id} "${article.title}"`);
   res.json({ ok: true });
 });
