@@ -10,7 +10,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_DIR/zbuild"
-C2R="${C2R:-$(command -v c2r 2>/dev/null || echo "$HOME/zprojects/container2run/c2r.sh")}"
+C2R="${C2R:-$SCRIPT_DIR/c2r.sh}"
 
 # Version: explicit arg, or read from package.json
 if [ -n "$1" ]; then
@@ -23,6 +23,7 @@ IMAGE_TAG="zdashboard:$VERSION"
 echo "=== zDashboard .run Builder (c2r) ==="
 echo "Version: $VERSION"
 echo "Image:   $IMAGE_TAG"
+echo "c2r:     $C2R"
 echo ""
 
 # Step 1: Build Docker image with versioned tag
