@@ -3,7 +3,7 @@ import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { existsSync, mkdirSync } from 'fs';
 import { PORT, HOST, AUDIO_DIR } from './src/config.js';
-import './src/db.js';
+import db from './src/db.js';
 import { audioRouter, audioState } from './src/routes/audio.js';
 import { articlesRouter } from './src/routes/articles.js';
 import { vocabRouter } from './src/routes/vocab.js';
@@ -43,6 +43,21 @@ setInterval(() => {
     if (c.readyState === 1) c.send(JSON.stringify({ type: 'play', data: item }));
   });
 }, 200);
+
+// Graceful shutdown: checkpoint WAL and close db
+function shutdown(signal) {
+  console.log(`\n[shutdown] ${signal} — flushing WAL and closing database...`);
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+    console.log('[shutdown] ✓ Database checkpointed and closed.');
+  } catch (e) {
+    console.error('[shutdown] Database close error:', e.message);
+  }
+  process.exit(0);
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // Start
 server.listen(PORT, HOST, () => {

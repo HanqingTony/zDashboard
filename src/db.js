@@ -6,6 +6,11 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+// Auto-checkpoint after every write transaction (100 pages ≈ 400KB)
+// Ensures WAL is merged into the main .db file promptly,
+// critical for single-file bind mounts where -wal/-shm are not mapped to host.
+db.pragma('wal_autocheckpoint = 100');
+
 // zVocab
 db.exec(`
   CREATE TABLE IF NOT EXISTS zVocab (
