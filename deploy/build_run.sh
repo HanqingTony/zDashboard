@@ -1,64 +1,30 @@
 #!/bin/bash
-# build_run.sh - Build zdashboard.run portable executable
+# build_run.sh - Build zdashboard.run using c2r
 # Usage: bash deploy/build_run.sh
-# Output: zbuild/ directory with all build artifacts
+# Output: zbuild/zdashboard.run
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_DIR/zbuild"
-PACK_DIR="$BUILD_DIR/pack"
+C2R="${C2R:-$(command -v c2r 2>/dev/null || echo "$HOME/zprojects/container2run/c2r.sh")}"
 
-echo "=== zDashboard .run Builder ==="
-echo "Project: $PROJECT_DIR"
-echo "Output:  $BUILD_DIR"
-echo ""
+echo "=== zDashboard .run Builder (c2r) ==="
 
-# Step 1: Clean and create build directory
-rm -rf "$BUILD_DIR"
-mkdir -p "$PACK_DIR"
-
-# Step 2: Build Docker image
-echo "[1/5] Building Docker image..."
+# Step 1: Build Docker image
+echo "[1/3] Building Docker image..."
 docker build -f "$SCRIPT_DIR/Dockerfile" -t zdashboard:latest "$PROJECT_DIR"
 
-# Step 3: Export image to tar
-echo "[2/5] Exporting Docker image..."
-docker save zdashboard:latest -o "$PACK_DIR/zdashboard.tar"
+# Step 2: Package with c2r (daemon mode for long-running service)
+echo "[2/3] Packaging with c2r..."
+mkdir -p "$BUILD_DIR"
+bash "$C2R" build -f "$SCRIPT_DIR/docker-compose.yml" -o "$BUILD_DIR/zdashboard.run" -d
 
-# Step 4: Copy pack files
-echo "[3/5] Copying pack files..."
-cp "$SCRIPT_DIR/pack/docker-compose.yml" "$PACK_DIR/"
-cp "$SCRIPT_DIR/pack/startup.sh" "$PACK_DIR/"
-chmod +x "$PACK_DIR/startup.sh"
-
-# Step 5: Generate VERSION
-echo "[4/5] Generating VERSION..."
-GIT_HASH=$(cd "$PROJECT_DIR" && git rev-parse --short HEAD)
-BUILD_DATE=$(date +%Y-%m-%d_%H%M%S)
-cat > "$PACK_DIR/VERSION" << EOF
-name=zdashboard
-image=zdashboard:latest
-git_commit=${GIT_HASH}
-build_date=${BUILD_DATE}
-EOF
-
-# Copy README
-cp "$SCRIPT_DIR/pack/README.md" "$PACK_DIR/"
-
-# Step 6: Package with makeself
-echo "[5/5] Packaging with makeself..."
-makeself "$PACK_DIR" "$BUILD_DIR/zdashboard.run" "zdashboard - portable web dashboard" ./startup.sh
-
-# Summary
+# Step 3: Summary
 echo ""
 echo "=== Build Complete ==="
-echo "Artifacts in $BUILD_DIR/:"
-ls -lh "$BUILD_DIR/"
-echo ""
-echo "Pack contents in $BUILD_DIR/pack/:"
-ls -lh "$PACK_DIR/"
+ls -lh "$BUILD_DIR/zdashboard.run"
 echo ""
 echo "Run it with:"
 echo "  export ZDB_PATH=/path/to/zdb.db"

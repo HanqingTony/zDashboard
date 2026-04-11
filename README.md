@@ -76,8 +76,7 @@ export ZDASHBOARD_PORT=3100
 ### Docker Compose
 
 ```bash
-cd deploy
-docker compose up -d
+docker compose -f deploy/docker-compose.yml up -d
 ```
 
 ### 本地开发
@@ -103,9 +102,8 @@ zDashboard/
 │   └── index.html      # 单文件 SPA 前端
 ├── deploy/             # Docker 部署
 │   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── build_run.sh    # .run 构建脚本
-│   └── pack/           # .run 打包素材
+│   ├── docker-compose.yml  # c2r 打包 & compose 部署共用
+│   └── build_run.sh    # .run 构建脚本（调用 c2r）
 ├── docs/               # 项目文档
 │   ├── ROADMAP.md      # 路线图
 │   └── v0.1.0.md       # 版本更新记录
