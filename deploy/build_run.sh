@@ -1,9 +1,9 @@
 #!/bin/bash
 # build_run.sh - Build zdashboard.run using c2r
 # Usage: bash deploy/build_run.sh [VERSION]
-# Output: zbuild/ (zdashboard.run, zdashboard.tar.gz, Dockerfile, docker-compose.yml)
+# Output: zbuild/ (zdashboard.run, zdashboard-VERSION.tar.gz, Dockerfile, docker-compose.yml)
 #
-# VERSION: optional, defaults to current date (YYYYMMDD)
+# VERSION: optional, defaults to package.json version
 
 set -e
 
@@ -12,8 +12,12 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_DIR/zbuild"
 C2R="${C2R:-$(command -v c2r 2>/dev/null || echo "$HOME/zprojects/container2run/c2r.sh")}"
 
-# Version: explicit arg, or date-based
-VERSION="${1:-$(date +%Y%m%d)}"
+# Version: explicit arg, or read from package.json
+if [ -n "$1" ]; then
+    VERSION="$1"
+else
+    VERSION=$(node -e "console.log(require('$PROJECT_DIR/package.json').version)")
+fi
 IMAGE_TAG="zdashboard:$VERSION"
 
 echo "=== zDashboard .run Builder (c2r) ==="
