@@ -360,12 +360,22 @@ BODY
 
     # ── Mode-specific: final compose command ─────────────────────────────────
     if [ "$daemonize" = "true" ]; then
-        echo 'docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true'
+        echo '# Stop any existing containers from this compose (handles different project names)'
+        echo 'docker compose -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true'
+        echo '# Also force-remove containers by name from compose service names'
+        echo 'for svc in $(grep -oP "^[[:space:]]+(\w+):" "$COMPOSE_FILE" | sed "s/://g; s/ //g"); do'
+        echo '    docker rm -f "$svc" 2>/dev/null || true'
+        echo 'done'
         echo 'docker compose -f "$COMPOSE_FILE" up -d'
         echo 'log_success "Service started in background."'
         echo 'log_info "To stop: docker compose -f \"$COMPOSE_FILE\" down"'
     else
-        echo 'docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true'
+        echo '# Stop any existing containers from this compose (handles different project names)'
+        echo 'docker compose -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true'
+        echo '# Also force-remove containers by name from compose service names'
+        echo 'for svc in $(grep -oP "^[[:space:]]+(\\w+):" "$COMPOSE_FILE" | sed "s/://g; s/ //g"); do'
+        echo '    docker rm -f "$svc" 2>/dev/null || true'
+        echo 'done'
         echo 'docker compose -f "$COMPOSE_FILE" up'
     fi
 }
